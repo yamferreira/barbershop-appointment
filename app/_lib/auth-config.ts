@@ -6,6 +6,11 @@ import { Adapter } from "next-auth/adapters"
 import type { PrismaClient } from "@prisma/client"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Without this, next-auth v5 rejects requests whose Host header it
+  // doesn't already recognize (UntrustedHost) in any production
+  // environment that isn't Vercel (which sets this implicitly via the
+  // VERCEL env var) — e.g. `next start` locally or self-hosted deploys.
+  trustHost: true,
   // @auth/prisma-adapter types its param against @prisma/client's PrismaClient,
   // but this project generates the client to a custom output path
   // (app/generated/prisma), so it's a structurally different type at compile
