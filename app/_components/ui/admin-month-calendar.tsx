@@ -7,10 +7,12 @@ import {
   eachDayOfInterval,
   endOfWeek,
   format,
+  isBefore,
   isSameDay,
   isSameMonth,
   isToday,
   startOfMonth,
+  startOfToday,
   startOfWeek,
   subMonths,
 } from "date-fns"
@@ -110,6 +112,11 @@ const AdminMonthCalendar = ({
           const isOutside = !isSameMonth(day, visibleMonth)
           const isSelected = isSameDay(day, selectedDate)
           const isCurrentDay = isToday(day)
+          // Só marca como "passado" dias dentro do mês visível e que não
+          // estejam selecionados — selecionar um dia antigo pra ver o
+          // histórico continua mostrando ele em destaque normal.
+          const isPastDay =
+            !isOutside && !isSelected && isBefore(day, startOfToday())
           const count = monthCounts[format(day, "yyyy-MM-dd")] ?? 0
 
           return (
@@ -126,10 +133,13 @@ const AdminMonthCalendar = ({
                 className={cn(
                   "relative flex aspect-square w-9 items-center justify-center rounded-full text-sm font-medium tabular-nums transition-all duration-150",
                   isOutside && "text-muted-foreground/40",
-                  !isOutside && !isSelected && "text-foreground",
+                  !isOutside && !isSelected && !isPastDay && "text-foreground",
+                  isPastDay && "text-muted-foreground/50",
                   isCurrentDay && !isSelected && "text-brand font-semibold",
                   !isSelected &&
+                    !isPastDay &&
                     "hover:bg-brand/10 hover:text-brand active:scale-90",
+                  isPastDay && "hover:bg-muted-foreground/10 active:scale-90",
                   isSelected &&
                     "bg-brand text-brand-foreground shadow-brand/30 shadow-md",
                 )}

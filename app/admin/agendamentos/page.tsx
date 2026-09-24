@@ -51,12 +51,14 @@ const AdminAgendamentosPage = async ({
       />
 
       <div id="agendamentos-do-dia" className="scroll-mt-4 space-y-3">
-        <h2 className="text-xs font-bold text-gray-400 uppercase">
+        <h2 className="text-muted-foreground text-xs font-bold uppercase">
           {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
         </h2>
 
         {bookings.length === 0 && (
-          <p className="text-sm text-gray-400">Nenhum agendamento nesse dia.</p>
+          <p className="text-muted-foreground text-sm">
+            Nenhum agendamento nesse dia.
+          </p>
         )}
 
         {bookings.length > 0 && (

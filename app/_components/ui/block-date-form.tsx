@@ -56,7 +56,7 @@ const BlockDateForm = () => {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-solid">
+      <div className="bg-card rounded-lg border">
         <Calendar
           mode="single"
           locale={ptBR}
@@ -130,11 +130,11 @@ const BlockDateForm = () => {
             {conflicts?.map((booking) => (
               <div
                 key={booking.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-solid p-3"
+                className="bg-card flex items-center justify-between gap-3 rounded-lg border p-3"
               >
                 <div>
                   <p className="text-sm font-semibold">{booking.clientName}</p>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-muted-foreground text-sm">
                     {booking.serviceNames}
                   </p>
                 </div>
@@ -143,7 +143,7 @@ const BlockDateForm = () => {
             ))}
           </div>
 
-          <p className="text-sm text-gray-400">
+          <p className="text-muted-foreground text-sm">
             Os agendamentos não serão cancelados. Avise os clientes por fora do
             sistema.
           </p>
