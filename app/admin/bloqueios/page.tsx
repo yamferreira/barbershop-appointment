@@ -20,10 +20,10 @@ const AdminBloqueiosPage = async () => {
       <BlockDateForm />
 
       <div className="space-y-2">
-        <h2 className="text-xs font-bold text-gray-400 uppercase">
+        <h2 className="text-muted-foreground text-xs font-bold uppercase">
           Feriados nacionais
         </h2>
-        <p className="text-sm text-gray-400">
+        <p className="text-muted-foreground text-sm">
           Bloqueia de uma vez os feriados nacionais deste ano e do próximo.
           Feriados de dezembro não entram e continuam sendo decisão sua.
         </p>
@@ -31,18 +31,18 @@ const AdminBloqueiosPage = async () => {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-xs font-bold text-gray-400 uppercase">
+        <h2 className="text-muted-foreground text-xs font-bold uppercase">
           Dias bloqueados
         </h2>
 
         {blockedDates.length === 0 && (
-          <p className="text-sm text-gray-400">Nenhum dia bloqueado.</p>
+          <p className="text-muted-foreground text-sm">Nenhum dia bloqueado.</p>
         )}
 
         {blockedDates.map((blockedDate) => (
           <div
             key={blockedDate.id}
-            className="flex items-center justify-between gap-3 rounded-lg border border-solid p-3"
+            className="bg-card flex items-center justify-between gap-3 rounded-lg border p-3"
           >
             <div>
               <p className="text-sm font-semibold capitalize">
@@ -54,7 +54,7 @@ const AdminBloqueiosPage = async () => {
                   },
                 )}
               </p>
-              <p className="text-sm text-gray-400">
+              <p className="text-muted-foreground text-sm">
                 {blockedDate.reason ?? "Sem motivo informado"}
               </p>
             </div>

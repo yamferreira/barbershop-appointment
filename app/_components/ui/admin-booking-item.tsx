@@ -28,13 +28,14 @@ const statusLabel: Record<BookingStatus, string> = {
   CANCELADO: "Cancelado",
 }
 
-const statusVariant: Record<
-  BookingStatus,
-  "default" | "secondary" | "destructive"
-> = {
-  CONFIRMADO: "default",
-  CONCLUIDO: "secondary",
-  CANCELADO: "destructive",
+// Cores fixas, independentes do token --brand: o status precisa continuar
+// reconhecível à primeira vista mesmo com a paleta verde/dourado da marca
+// aplicada ao admin (variant "default" do Badge usa --primary, que sob
+// theme-nobre vira dourado — inadequado pra um status, não um destaque).
+const statusClassName: Record<BookingStatus, string> = {
+  CONFIRMADO: "border-blue-200 bg-blue-50 text-blue-700",
+  CONCLUIDO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  CANCELADO: "border-red-200 bg-red-50 text-red-700",
 }
 
 const AdminBookingItem = ({ booking }: AdminBookingItemProps) => {
@@ -42,13 +43,13 @@ const AdminBookingItem = ({ booking }: AdminBookingItemProps) => {
     <Card>
       <CardContent className="flex items-center justify-between gap-3 p-5">
         <div className="space-y-1">
-          <Badge variant={statusVariant[booking.status]}>
+          <Badge variant="outline" className={statusClassName[booking.status]}>
             {statusLabel[booking.status]}
           </Badge>
           <p className="font-semibold">
             {booking.user?.name ?? booking.guestName ?? "Cliente sem nome"}
           </p>
-          <p className="text-sm text-gray-400">
+          <p className="text-muted-foreground text-sm">
             {formatServiceNames(booking.services)}
           </p>
           {booking.status === "CONFIRMADO" && (
@@ -68,7 +69,7 @@ const AdminBookingItem = ({ booking }: AdminBookingItemProps) => {
           <p className="text-lg font-bold">
             {format(booking.date, "HH:mm", { locale: ptBR })}
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-muted-foreground text-xs">
             até {formatBookingEnd(booking.date, booking.durationMinutes)}
           </p>
         </div>
