@@ -1,8 +1,8 @@
 # LuizBarber
 
-Sistema de agendamento online para uma barbearia com **um único barbeiro**. O cliente agenda sozinho, sem precisar ligar, mandar mensagem ou criar conta — e o barbeiro gerencia toda a operação por um painel administrativo.
+Sistema de agendamento online para uma barbearia com **dois barbeiros (Luiz e TH), cada um com agenda independente**. O cliente agenda sozinho, sem precisar ligar, mandar mensagem ou criar conta — e os barbeiros gerenciam toda a operação por um painel administrativo.
 
-> O projeto nasceu como um marketplace multi-barbearia (inspirado em um curso) e foi convertido para atender a um cliente real: um barbeiro único, com fluxo de agendamento simplificado e direto na home.
+> O projeto nasceu como um marketplace multi-barbearia (inspirado em um curso) e foi convertido para atender a um cliente real: uma única barbearia, com fluxo de agendamento simplificado e direto na home. Começou com um barbeiro só e hoje atende com dois.
 
 ---
 
@@ -26,7 +26,7 @@ Sistema de agendamento online para uma barbearia com **um único barbeiro**. O c
 
 O app resolve um problema simples e caro para barbearias pequenas: **a agenda não pode viver na cabeça de uma pessoa só**. Antes, cada agendamento era uma troca de mensagens manual — o cliente pergunta, o barbeiro confere, responde, anota. O LuizBarber transforma isso em um fluxo autoatendido: o cliente abre a home, escolhe o(s) serviço(s), vê os horários realmente disponíveis e confirma — sem depender de ida e volta.
 
-Como existe apenas um barbeiro, a agenda é tratada como um **recurso único e serializado**: não é possível ter dois atendimentos simultâneos, mesmo que sejam serviços diferentes. Essa premissa está refletida na arquitetura, no banco de dados e nas regras de validação de horário.
+Cada barbeiro tem a **própria agenda, um recurso serializado**: um mesmo barbeiro não pode ter dois atendimentos simultâneos, mesmo que sejam serviços diferentes, mas dois atendimentos no mesmo horário são permitidos se forem de barbeiros diferentes. Os dois compartilham o mesmo catálogo de serviços e preços. Essa premissa está refletida na arquitetura, no banco de dados e nas regras de validação de horário.
 
 ---
 
@@ -73,14 +73,18 @@ Barbershop ──< BarbershopService (price, durationMinutes)
                      ├──< BookingService (tabela de junção)
                      │            │
                      └──────< Booking (date, status, durationMinutes, guestName, guestPhone)
+                                  │
+Barber (name, active, calendarToken) ──< Booking.barberId
 
-BlockedDate (date @unique, reason)
+BlockedDate (date, reason, barberId?)   -- barberId nulo = barbearia inteira
 ```
 
 Decisões de modelagem relevantes:
 
 - **`Booking.durationMinutes` é um snapshot.** A duração é congelada no momento da reserva, e não recalculada a partir do catálogo de serviços — editar a duração de um serviço no futuro não pode reescrever agendamentos já feitos.
-- **Índice único parcial** (`Booking_date_active_key`, em `date WHERE status <> 'CANCELADO'`) garante, no nível do banco, que não existam dois agendamentos ativos exatamente no mesmo instante — e libera o slot automaticamente quando um agendamento é cancelado.
+- **Índice único parcial** (`Booking_barberId_date_active_key`, em `(barberId, date) WHERE status <> 'CANCELADO'`) garante, no nível do banco, que um mesmo barbeiro não tenha dois agendamentos ativos exatamente no mesmo instante — e libera o slot automaticamente quando um agendamento é cancelado.
+- **`Barber` é separado de `User`.** Um barbeiro pode nem ter conta no sistema, e qualquer usuário com papel `BARBEIRO` enxerga a agenda de todos. `calendarToken` (32 bytes aleatórios, hex) só é criado e guardado: nenhuma rota o usa ainda, e por ser segredo nenhuma consulta que chegue ao client o seleciona.
+- **`BlockedDate.barberId` opcional.** Nulo bloqueia a barbearia inteira (feriados e sincronização continuam assim); preenchido bloqueia só aquele barbeiro. A unicidade fica em dois índices únicos parciais (`WHERE barberId IS NULL` e `WHERE barberId IS NOT NULL`), porque o Postgres trata `NULL` como distinto.
 - **Agendamentos suportam múltiplos serviços** via tabela de junção `BookingService` (relação N:N com `BarbershopService`).
 
 ---
@@ -93,10 +97,11 @@ Decisões de modelagem relevantes:
 |---|---|
 | Home única | Saudação, data por extenso, agendamentos confirmados e fluxo de marcação — tudo em uma tela |
 | Múltiplos serviços | Seleção em grid; duração e preço total somados em tempo real |
-| Calendário inteligente | Domingos, datas passadas e dias bloqueados já aparecem desabilitados |
-| Horários reais | Só aparecem os horários que cabem sem colidir com outro agendamento nem ultrapassar o fechamento |
+| Calendário inteligente | Domingos, datas passadas e dias bloqueados para todos os barbeiros já aparecem desabilitados |
+| Escolha do barbeiro | Depois do dia, uma seção de horários por barbeiro ("Horário do Luiz", "Horário do TH"); escolher um horário define o barbeiro |
+| Horários reais | Em cada seção só aparecem os horários que cabem sem colidir com outro agendamento daquele barbeiro nem ultrapassar o fechamento |
 | Agendamento sem login | Basta informar o nome (telefone opcional) — login com Google é só uma opção |
-| Histórico | Agendamentos confirmados e finalizados, separados, com faixa de horário |
+| Histórico | Agendamentos confirmados e finalizados, separados, com faixa de horário e o barbeiro ("com Luiz") |
 | Cancelamento | Pelo próprio cliente, com confirmação |
 | Página informativa | Endereço, telefones, descrição e catálogo de serviços com preço e duração |
 
@@ -104,22 +109,24 @@ Decisões de modelagem relevantes:
 
 | Recurso | Descrição |
 |---|---|
-| Dashboard | Agendamentos do dia, ordenados por horário |
-| Agenda mensal | Calendário com contagem de agendamentos ativos por dia |
+| Dashboard | Agendamentos do dia, ordenados por horário, com o barbeiro de cada um e filtro Todos / Luiz / TH |
+| Agenda mensal | Calendário com contagem de agendamentos ativos por dia, respeitando o filtro de barbeiro |
 | Ordenação inteligente | Lista do dia agrupada por status: Confirmado → Concluído → Cancelado |
 | Ações por agendamento | Concluir, cancelar, reagendar |
-| Reagendamento validado | Bloqueia domingo, dia indisponível, fechamento e sobreposição de horário |
-| Bloqueio de dias | Com motivo opcional; avisa (sem cancelar automaticamente) se já houver agendamentos no dia |
+| Reagendamento validado | Mantém o barbeiro do agendamento; bloqueia domingo, dia indisponível, fechamento e sobreposição na agenda dele |
+| Bloqueio de dias | Barbearia inteira ou um barbeiro só, com motivo opcional; avisa (sem cancelar automaticamente) se já houver agendamentos no dia |
 | Feriados automáticos | Sincronização manual ou via cron dos feriados nacionais (BrasilAPI), excluindo dezembro |
 
 ---
 
 ## Regras de negócio
 
-- **Conflito é de intervalo, não de instante.** Um agendamento ocupa `[início, início + duração)`. Um serviço de 1h às 11:00 conflita com outro às 12:00, mesmo sem repetir o horário exato.
+- **Conflito é de intervalo, não de instante, e por barbeiro.** Um agendamento ocupa `[início, início + duração)` na agenda do barbeiro. Um serviço de 1h às 11:00 do Luiz conflita com outro do Luiz às 12:00, mesmo sem repetir o horário exato, mas não conflita com o TH.
+- **O fechamento às 20h vale para cada barbeiro**, e a checagem de sobreposição considera só as reservas do barbeiro escolhido.
 - **Encostar não é conflito.** Um agendamento que termina às 13:00 não colide com outro que começa às 13:00.
-- **Defesa em três camadas.** O filtro de horários no cliente é conveniência de UX; a validação real acontece na Server Action; e o índice único parcial do banco é a última barreira contra condição de corrida.
-- **Bloquear um dia avisa, não cancela.** Se houver agendamentos no dia, o barbeiro é avisado e precisa confirmar — nada é alterado automaticamente. Avisar o cliente é responsabilidade manual.
+- **Defesa em três camadas.** O filtro de horários no cliente é conveniência de UX; a validação real acontece na Server Action (que também confere que o barbeiro existe e está ativo); e o índice único parcial do banco é a última barreira contra condição de corrida.
+- **Bloquear um dia avisa, não cancela.** Se houver agendamentos no dia (do barbeiro escolhido, ou de todos no bloqueio da barbearia inteira), o barbeiro é avisado e precisa confirmar — nada é alterado automaticamente. Avisar o cliente é responsabilidade manual.
+- **Bloqueio individual num dia já bloqueado para a barbearia inteira é recusado** (redundante). O contrário é permitido: bloquear a barbearia mantém os bloqueios individuais, e desfazer o geral os devolve.
 - **Feriados de dezembro não entram na sincronização automática** — ficam sob decisão do barbeiro.
 - **A sincronização de feriados nunca sobrescreve um bloqueio manual** já existente, e é idempotente (rodar de novo não duplica).
 

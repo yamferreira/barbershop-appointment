@@ -73,6 +73,23 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+/// Barbeiro com agenda própria. Separado de `User` de propósito: um barbeiro
+/// pode nem ter conta no sistema.
+///
+/// `calendarToken` é segredo (32 bytes aleatórios em hex). Nunca entra em
+/// `select`/`include` que chegue ao client: consultas que cruzam a fronteira
+/// pedem só `id` e `name`.
+model Barber {
+  id            String        @id @default(uuid())
+  name          String        @unique
+  active        Boolean       @default(true)
+  calendarToken String        @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  bookings      Booking[]
+  blockedDates  BlockedDate[]
+}
+
 model Barbershop {
   id          String              @id @default(uuid())
   name        String
@@ -127,15 +144,22 @@ model Booking {
   serviceId String
   service   BarbershopService @relation(fields: [serviceId], references: [id])
 
-  // Unicidade de `date` é garantida por um índice único PARCIAL criado via SQL
-  // cru na migração `booking_partial_unique_by_date` (WHERE status <>
-  // 'CANCELADO'), de forma que horários cancelados fiquem livres para novo
-  // agendamento. Prisma não expressa índice parcial no schema declarativo, por
-  // isso ele não aparece como @@unique aqui.
+  // Barbeiro que atende. A agenda é por barbeiro: dois agendamentos no mesmo
+  // horário só são permitidos se forem de barbeiros diferentes.
+  barberId String
+  barber   Barber @relation(fields: [barberId], references: [id])
+
+  // Unicidade de (barberId, date) é garantida por um índice único PARCIAL
+  // criado via SQL cru na migração `add_barber` (WHERE status <> 'CANCELADO'),
+  // de forma que horários cancelados fiquem livres para novo agendamento.
+  // Prisma não expressa índice parcial no schema declarativo, por isso ele não
+  // aparece como @@unique aqui.
   //
-  // A unicidade é por horário, não por (serviço, horário): é um barbeiro só,
-  // então um Corte e uma Barba às 10:00 seriam dois clientes ao mesmo tempo.
+  // A unicidade é por barbeiro e horário, não por (serviço, horário): um Corte
+  // e uma Barba às 10:00 com o mesmo barbeiro seriam dois clientes ao mesmo
+  // tempo.
   @@index([serviceId, date])
+  @@index([barberId, date])
 }
 
 /// Serviços de um agendamento. Sem coluna de ordem: a lista é um conjunto, o
@@ -157,9 +181,21 @@ enum BookingStatus {
   CANCELADO
 }
 
+/// `barberId` nulo bloqueia a barbearia inteira (feriados e sincronização
+/// continuam assim); preenchido bloqueia só aquele barbeiro.
+///
+/// A unicidade fica em dois índices únicos PARCIAIS criados via SQL cru na
+/// migração `add_barber`, porque o Postgres trata NULL como distinto e um
+/// `@@unique([date, barberId])` deixaria passar dois bloqueios da barbearia
+/// inteira no mesmo dia: `(date) WHERE barberId IS NULL` e
+/// `(date, barberId) WHERE barberId IS NOT NULL`.
 model BlockedDate {
   id        String   @id @default(uuid())
-  date      DateTime @unique @db.Date
+  date      DateTime @db.Date
   reason    String?
+  barberId  String?
+  barber    Barber?  @relation(fields: [barberId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  @@index([date])
 }

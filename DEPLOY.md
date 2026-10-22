@@ -123,33 +123,53 @@ ou ausente), `500` (`CRON_SECRET` não configurado), `502` (BrasilAPI fora do ar
 
 ## Notas específicas deste projeto
 
-- As migrações `20260729035234_booking_partial_unique_active` e
-  `20260804021500_booking_partial_unique_by_date` usam **SQL cru** para criar um
-  índice único **parcial**. O estado atual é:
+- As migrações `20260729035234_booking_partial_unique_active`,
+  `20260804021500_booking_partial_unique_by_date` e
+  `20261022022843_add_barber` usam **SQL cru** para criar índices únicos
+  **parciais**. O estado atual é:
 
   ```sql
-  CREATE UNIQUE INDEX "Booking_date_active_key"
-    ON "Booking"("date")
+  CREATE UNIQUE INDEX "Booking_barberId_date_active_key"
+    ON "Booking"("barberId", "date")
     WHERE "status" <> 'CANCELADO';
+
+  CREATE UNIQUE INDEX "BlockedDate_date_shop_key"
+    ON "BlockedDate"("date")
+    WHERE "barberId" IS NULL;
+
+  CREATE UNIQUE INDEX "BlockedDate_date_barber_key"
+    ON "BlockedDate"("date", "barberId")
+    WHERE "barberId" IS NOT NULL;
   ```
 
-  Ele garante no máximo um agendamento **ativo** por horário, deixando horários
-  `CANCELADO` livres para novo agendamento. O Prisma não expressa índice parcial
-  no schema declarativo, por isso ele existe só na migração (o schema tem um
-  `@@index` comum no lugar).
+  O primeiro garante no máximo um agendamento **ativo** por barbeiro e horário,
+  deixando horários `CANCELADO` livres para novo agendamento: dois agendamentos
+  no mesmo horário só são permitidos se forem de barbeiros diferentes. Os outros
+  dois garantem um bloqueio por dia para a barbearia inteira (`barberId` nulo) e
+  um por dia e barbeiro; um `UNIQUE(date, barberId)` comum não bastaria, porque o
+  Postgres trata `NULL` como distinto. O Prisma não expressa índice parcial no
+  schema declarativo, por isso eles existem só na migração (o schema tem
+  `@@index` comuns no lugar).
 
-  A unicidade é por `date`, e não por `(serviceId, date)` como era antes: é um
-  barbeiro só, então um Corte e uma Barba marcados às 10:00 seriam dois clientes
-  no mesmo horário.
+  **Migração `add_barber` (agenda por barbeiro).** Roda em uma única transação e
+  em etapas, porque havia agendamentos reais: cria `Barber` e insere Luiz e TH,
+  adiciona `Booking.barberId` nullable, faz o backfill de **todos** os
+  agendamentos para o Luiz e só então aplica `NOT NULL` (se sobrar uma linha
+  nula, a migração inteira reverte). O `calendarToken` de cada barbeiro é gerado
+  no próprio SQL (`gen_random_uuid()` ×2 → 32 bytes em hex), então o token nunca
+  vai para o repositório. Antes de aplicar em um banco com dados, tire um
+  snapshot JSON e confira depois as contagens, que nenhum `Booking` ficou sem
+  `barberId` e os índices em `pg_indexes`. O seed só faz upsert por nome e nunca
+  regenera o token.
 
-  **Atenção no deploy desta migração:** se a base já tiver dois agendamentos
-  ativos no mesmo horário (possível sob o índice antigo), o `CREATE UNIQUE INDEX`
-  **falha** e a migração não aplica. Cheque antes e resolva os conflitos:
+  **Atenção no deploy de uma migração de índice único:** se a base já tiver
+  linhas que violem o índice novo, o `CREATE UNIQUE INDEX` **falha** e a
+  migração não aplica. No caso de `Booking`, cheque antes:
 
   ```sql
-  SELECT "date", COUNT(*) FROM "Booking"
+  SELECT "barberId", "date", COUNT(*) FROM "Booking"
   WHERE "status" <> 'CANCELADO'
-  GROUP BY "date" HAVING COUNT(*) > 1;
+  GROUP BY "barberId", "date" HAVING COUNT(*) > 1;
   ```
 
 - **Advisory lock no Neon:** ao rodar migrações pela conexão _pooled_
