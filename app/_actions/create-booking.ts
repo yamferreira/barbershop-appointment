@@ -2,7 +2,7 @@
 
 import { endOfDay, startOfDay } from "date-fns"
 import { Prisma } from "../generated/prisma"
-import { toDateOnly } from "../_lib/date-only"
+import { findBlockForBarber } from "../_lib/blocked-dates"
 import { db } from "../_lib/prisma"
 import {
   CLOSING_HOUR,
@@ -14,6 +14,7 @@ import { auth } from "../_lib/auth-config"
 
 interface CreateBookingParams {
   serviceIds: string[]
+  barberId: string
   date: Date
   guestName?: string
   guestPhone?: string
@@ -43,9 +44,23 @@ export const createBooking = async (params: CreateBookingParams) => {
     }
   }
 
-  const blockedDate = await db.blockedDate.findUnique({
-    where: { date: toDateOnly(params.date) },
-  })
+  // `barberId` vem do client, então não dá para confiar nele: precisa existir e
+  // estar ativo. Fora isso, qualquer id inventado cairia direto na FK.
+  const barber =
+    typeof params.barberId === "string"
+      ? await db.barber.findUnique({
+          where: { id: params.barberId },
+          select: { id: true, active: true },
+        })
+      : null
+  if (!barber || !barber.active) {
+    return {
+      success: false as const,
+      message: "Barbeiro não encontrado.",
+    }
+  }
+
+  const blockedDate = await findBlockForBarber(params.date, barber.id)
   if (blockedDate) {
     return {
       success: false as const,
@@ -54,9 +69,9 @@ export const createBooking = async (params: CreateBookingParams) => {
   }
 
   // Validação real de conflito. O índice único parcial só protege contra
-  // `date` idêntica, e um agendamento ocupa um intervalo: às 11:00 com 70min
-  // atropela o das 12:00 sem repetir a data. A lista de horários do client
-  // filtra isso por conveniência, mas pode estar desatualizada.
+  // (barbeiro, `date`) idênticos, e um agendamento ocupa um intervalo: às 11:00
+  // com 70min atropela o das 12:00 sem repetir a data. A lista de horários do
+  // client filtra isso por conveniência, mas pode estar desatualizada.
   // Repetir o mesmo serviço não muda nada para o cliente e a chave composta de
   // BookingService recusaria a segunda linha, então o pedido é normalizado.
   const serviceIds = [...new Set(params.serviceIds)]
@@ -97,8 +112,10 @@ export const createBooking = async (params: CreateBookingParams) => {
     }
   }
 
+  // Só as reservas deste barbeiro contam: a agenda de cada um é independente.
   const dayBookings = await db.booking.findMany({
     where: {
+      barberId: barber.id,
       date: {
         gte: startOfDay(params.date),
         lte: endOfDay(params.date),
@@ -131,6 +148,7 @@ export const createBooking = async (params: CreateBookingParams) => {
     await db.booking.create({
       data: {
         date: params.date,
+        barberId: barber.id,
         durationMinutes: totalDurationMinutes,
         userId: session?.user?.id as string | undefined,
         guestName,

@@ -1,6 +1,7 @@
 "use client"
 
 import type {
+  Barber,
   Barbershop,
   BarbershopService,
   BlockedDate,
@@ -35,11 +36,21 @@ type ServiceWithNumberPrice = Omit<BarbershopService, "price"> & {
 }
 
 /** O que `getBookings` entrega: só o intervalo ocupado, sem dados do cliente. */
-type DayBooking = Pick<Booking, "date" | "durationMinutes">
+type DayBooking = Pick<Booking, "barberId" | "date" | "durationMinutes">
+
+/** O que `getActiveBarbers` entrega: nunca o `calendarToken`. */
+type BarberOption = Pick<Barber, "id" | "name">
+
+/** Horário escolhido: o barbeiro vem junto, porque cada seção tem o seu. */
+interface SelectedSlot {
+  barberId: string
+  time: string
+}
 
 interface BookingFlowProps {
   services: ServiceWithNumberPrice[]
   barbershop: Pick<Barbershop, "name">
+  barbers: BarberOption[]
 }
 
 const TIME_LIST = [
@@ -60,14 +71,14 @@ const formatPrice = (price: number) =>
     price,
   )
 
-const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
+const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
   const { data } = useSession()
   const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(
     new Set(),
   )
   const [showBookingDetails, setShowBookingDetails] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined)
-  const [selectedTime, setSelectedTime] = useState<string | undefined>(
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | undefined>(
     undefined,
   )
   const [dayBookings, setDayBookings] = useState<DayBooking[]>([])
@@ -101,48 +112,79 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
     getBookings({ date: selectedDay }).then(setDayBookings)
   }, [selectedDay])
 
+  // Bloqueio sem barbeiro vale para a barbearia inteira; com barbeiro, só para
+  // ele. O mesmo critério do servidor (`findBlockForBarber`).
+  const isBlockedFor = (date: Date, barberId: string) =>
+    blockedDates.some(
+      (blocked) =>
+        isSameDay(fromDateOnly(blocked.date), date) &&
+        (blocked.barberId === null || blocked.barberId === barberId),
+    )
+
+  // O dia só some do calendário quando nenhum barbeiro pode atender nele. Se
+  // só um estiver bloqueado, o dia continua e a seção dele avisa.
   const isDateDisabled = (date: Date) => {
     if (date < startOfToday()) return true
     if (date.getDay() === 0) return true
-    return blockedDates.some((blocked) =>
-      isSameDay(fromDateOnly(blocked.date), date),
-    )
+    return barbers.every((barber) => isBlockedFor(date, barber.id))
   }
 
-  // Um horário só entra na lista se o intervalo inteiro do novo agendamento
-  // (início até início + duração total dos serviços marcados) couber antes do
-  // fechamento e não colidir com nenhum agendamento ativo do dia — e cada um
-  // deles também ocupa um intervalo, não só o instante em que começa.
+  // Um horário só entra na lista de um barbeiro se o intervalo inteiro do novo
+  // agendamento (início até início + duração total dos serviços marcados) couber
+  // antes do fechamento e não colidir com nenhum agendamento ativo DELE no dia
+  // — e cada um deles também ocupa um intervalo, não só o instante em que
+  // começa. A agenda de cada barbeiro é independente: o Luiz ocupado às 14h não
+  // tira o horário do TH.
   //
   // Isso é só conveniência de UX: a validação que vale é a do servidor, em
   // createBooking.
-  const timeList = useMemo(() => {
+  const barberSlots = useMemo(() => {
     if (!selectedDay || totalDurationMinutes === 0) return []
     const closingTime = getClosingTime(selectedDay)
 
-    return TIME_LIST.filter((time) => {
-      const hour = Number(time.split(":")[0])
-      const minutes = Number(time.split(":")[1])
-      const start = set(selectedDay, {
-        hours: hour,
-        minutes,
-        seconds: 0,
-        milliseconds: 0,
-      })
-      const end = getBookingEnd(start, totalDurationMinutes)
-
-      if (end > closingTime) return false
-
-      return !dayBookings.some((booking) =>
-        intervalsOverlap(
-          start,
-          end,
-          booking.date,
-          getBookingEnd(booking.date, booking.durationMinutes),
-        ),
+    return barbers.map((barber) => {
+      const barberBookings = dayBookings.filter(
+        (booking) => booking.barberId === barber.id,
       )
+      const isBlocked = blockedDates.some(
+        (blocked) =>
+          isSameDay(fromDateOnly(blocked.date), selectedDay) &&
+          (blocked.barberId === null || blocked.barberId === barber.id),
+      )
+
+      const times = isBlocked
+        ? []
+        : TIME_LIST.filter((time) => {
+            const hour = Number(time.split(":")[0])
+            const minutes = Number(time.split(":")[1])
+            const start = set(selectedDay, {
+              hours: hour,
+              minutes,
+              seconds: 0,
+              milliseconds: 0,
+            })
+            const end = getBookingEnd(start, totalDurationMinutes)
+
+            if (end > closingTime) return false
+
+            return !barberBookings.some((booking) =>
+              intervalsOverlap(
+                start,
+                end,
+                booking.date,
+                getBookingEnd(booking.date, booking.durationMinutes),
+              ),
+            )
+          })
+
+      return { barber, isBlocked, times }
     })
-  }, [selectedDay, dayBookings, totalDurationMinutes])
+  }, [selectedDay, dayBookings, blockedDates, barbers, totalDurationMinutes])
+
+  const hasAnySlot = barberSlots.some(({ times }) => times.length > 0)
+  const selectedBarber = barbers.find(
+    (barber) => barber.id === selectedSlot?.barberId,
+  )
 
   const handleServiceToggle = (serviceId: string) => {
     setSelectedServiceIds((prev) => {
@@ -156,34 +198,36 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
     })
     setShowBookingDetails(false)
     setSelectedDay(undefined)
-    setSelectedTime(undefined)
+    setSelectedSlot(undefined)
   }
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDay(date)
-    setSelectedTime(undefined)
+    setSelectedSlot(undefined)
   }
 
-  const handleTimeSelect = (time: string) => {
-    setSelectedTime(time)
+  // Escolher um horário em qualquer seção define também o barbeiro.
+  const handleTimeSelect = (barberId: string, time: string) => {
+    setSelectedSlot({ barberId, time })
   }
 
   const handleConfirmClick = async () => {
-    if (!selectedDay || !selectedTime || selectedServices.length === 0) return
+    if (!selectedDay || !selectedSlot || selectedServices.length === 0) return
     if (isGuest && !guestName.trim()) {
       toast.error("Informe seu nome para agendar.")
       return
     }
 
     try {
-      const hour = Number(selectedTime.split(":")[0])
-      const minutes = Number(selectedTime.split(":")[1])
+      const hour = Number(selectedSlot.time.split(":")[0])
+      const minutes = Number(selectedSlot.time.split(":")[1])
       const newDate = set(selectedDay, {
         minutes: minutes,
         hours: hour,
       })
       const result = await createBooking({
         serviceIds: selectedServices.map((service) => service.id),
+        barberId: selectedSlot.barberId,
         date: newDate,
         ...(isGuest && {
           guestName: guestName.trim(),
@@ -193,13 +237,13 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
 
       if (!result.success) {
         toast.error(result.message)
-        setSelectedTime(undefined)
+        setSelectedSlot(undefined)
         getBookings({ date: selectedDay }).then(setDayBookings)
         return
       }
 
       setSelectedDay(undefined)
-      setSelectedTime(undefined)
+      setSelectedSlot(undefined)
       toast.success("Reserva criada com sucesso!")
     } catch (error) {
       console.log(error)
@@ -279,28 +323,54 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
               disabled={isDateDisabled}
             />
 
-            {selectedDay && timeList.length > 0 && (
-              <div className="flex gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                {timeList.map((time) => (
-                  <Button
-                    key={time}
-                    variant={selectedTime === time ? "default" : "outline"}
-                    className="rounded-full"
-                    onClick={() => handleTimeSelect(time)}
-                  >
-                    {time}
-                  </Button>
-                ))}
-              </div>
-            )}
+            {selectedDay &&
+              barberSlots.map(({ barber, isBlocked, times }) => (
+                <div key={barber.id} className="space-y-3">
+                  <h4 className="text-sm font-semibold">
+                    Horário do {barber.name}
+                  </h4>
 
-            {selectedDay && timeList.length === 0 && (
+                  {times.length > 0 ? (
+                    <div className="flex gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                      {times.map((time) => (
+                        <Button
+                          key={time}
+                          variant={
+                            selectedSlot?.barberId === barber.id &&
+                            selectedSlot.time === time
+                              ? "default"
+                              : "outline"
+                          }
+                          className="rounded-full"
+                          onClick={() => handleTimeSelect(barber.id, time)}
+                        >
+                          {time}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      {isBlocked
+                        ? `${barber.name} não atende nesse dia.`
+                        : "Sem horários livres nessa data."}
+                    </p>
+                  )}
+                </div>
+              ))}
+
+            {selectedDay && barbers.length > 0 && !hasAnySlot && (
               <p className="text-muted-foreground text-sm">
                 Nenhum horário disponível para essa data.
               </p>
             )}
 
-            {selectedTime && selectedDay && (
+            {barbers.length === 0 && (
+              <p className="text-muted-foreground text-sm">
+                Nenhum barbeiro disponível no momento.
+              </p>
+            )}
+
+            {selectedSlot && selectedDay && (
               <Card>
                 <CardContent className="space-y-3 p-3">
                   <div className="flex items-center justify-between">
@@ -319,7 +389,12 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
 
                   <div className="flex items-center justify-between">
                     <h2 className="text-muted-foreground text-sm">Horário</h2>
-                    <p className="text-sm">{selectedTime}</p>
+                    <p className="text-sm">{selectedSlot?.time}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-muted-foreground text-sm">Barbeiro</h2>
+                    <p className="text-sm">{selectedBarber?.name}</p>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -330,7 +405,7 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
               </Card>
             )}
 
-            {selectedTime && selectedDay && isGuest && (
+            {selectedSlot && selectedDay && isGuest && (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <Label htmlFor="guest-name">Nome</Label>
@@ -357,7 +432,7 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
               className="w-full"
               onClick={handleConfirmClick}
               disabled={
-                !selectedTime || !selectedDay || (isGuest && !guestName.trim())
+                !selectedSlot || !selectedDay || (isGuest && !guestName.trim())
               }
             >
               Confirmar
