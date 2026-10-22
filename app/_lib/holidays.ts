@@ -112,8 +112,12 @@ export const syncNationalHolidays = async (): Promise<SyncHolidaysResult> => {
 
   // Bloqueios manuais na mesma data são preservados: a sincronização só cria o
   // que ainda não existe, nunca atualiza nem apaga um `BlockedDate` existente.
+  // Feriado vale para a barbearia inteira (`barberId` nulo), então só um
+  // bloqueio geral na mesma data conta como já existente; o de um barbeiro não
+  // impede o feriado de ser criado.
   const existing = await db.blockedDate.findMany({
     where: {
+      barberId: null,
       date: { in: [...candidates.values()].map(({ date }) => date) },
     },
     select: { date: true },
@@ -130,7 +134,8 @@ export const syncNationalHolidays = async (): Promise<SyncHolidaysResult> => {
   const { count } = await db.blockedDate.createMany({
     data: [...candidates.values()],
     // Rede de segurança contra duas sincronizações simultâneas: a corrida entre
-    // a leitura acima e a escrita esbarraria no índice único de `date`.
+    // a leitura acima e a escrita esbarraria no índice único parcial de `date`
+    // (`WHERE barberId IS NULL`).
     skipDuplicates: true,
   })
 

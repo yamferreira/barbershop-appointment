@@ -1,6 +1,7 @@
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import type {
+  Barber,
   Booking,
   BarbershopService,
   User,
@@ -17,6 +18,7 @@ import RescheduleBookingDialog from "./reschedule-booking-dialog"
 
 interface AdminBookingItemProps {
   booking: Booking & {
+    barber: Pick<Barber, "name">
     services: { service: BarbershopService }[]
     user: User | null
   }
@@ -51,6 +53,9 @@ const AdminBookingItem = ({ booking }: AdminBookingItemProps) => {
           </p>
           <p className="text-muted-foreground text-sm">
             {formatServiceNames(booking.services)}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            Barbeiro: {booking.barber.name}
           </p>
           {booking.status === "CONFIRMADO" && (
             <div className="flex flex-wrap items-center gap-2">

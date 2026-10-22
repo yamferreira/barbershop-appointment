@@ -7,17 +7,25 @@ import SyncHolidaysButton from "@/app/_components/ui/sync-holidays-button"
 import UnblockDateButton from "@/app/_components/ui/unblock-date-button"
 
 const AdminBloqueiosPage = async () => {
-  const blockedDates = await db.blockedDate.findMany({
-    orderBy: {
-      date: "asc",
-    },
-  })
+  const [blockedDates, barbers] = await Promise.all([
+    db.blockedDate.findMany({
+      include: { barber: { select: { name: true } } },
+      orderBy: {
+        date: "asc",
+      },
+    }),
+    db.barber.findMany({
+      where: { active: true },
+      select: { id: true, name: true },
+      orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+    }),
+  ])
 
   return (
     <div className="space-y-6 p-5">
       <h1 className="text-xl font-bold">Bloquear dias</h1>
 
-      <BlockDateForm />
+      <BlockDateForm barbers={barbers} />
 
       <div className="space-y-2">
         <h2 className="text-muted-foreground text-xs font-bold uppercase">
@@ -56,6 +64,11 @@ const AdminBloqueiosPage = async () => {
               </p>
               <p className="text-muted-foreground text-sm">
                 {blockedDate.reason ?? "Sem motivo informado"}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {blockedDate.barber
+                  ? `Só ${blockedDate.barber.name}`
+                  : "Barbearia inteira"}
               </p>
             </div>
 

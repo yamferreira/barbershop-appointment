@@ -3,12 +3,27 @@ import Link from "next/link"
 import { db } from "@/app/_lib/prisma"
 import { serviceDisplayOrder } from "@/app/_lib/booking-display"
 import AdminBookingItem from "@/app/_components/ui/admin-booking-item"
+import AdminBarberFilter from "@/app/_components/ui/admin-barber-filter"
 
-const AdminPage = async () => {
+interface AdminPageProps {
+  searchParams: Promise<{ barbeiro?: string }>
+}
+
+const AdminPage = async ({ searchParams }: AdminPageProps) => {
+  const { barbeiro } = await searchParams
   const today = new Date()
+
+  // Admin enxerga todos os barbeiros (inclusive inativos, que ainda podem ter
+  // agendamentos). Um id desconhecido na URL vira "Todos".
+  const barbers = await db.barber.findMany({
+    select: { id: true, name: true },
+    orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+  })
+  const selectedBarberId = barbers.find((barber) => barber.id === barbeiro)?.id
 
   const bookings = await db.booking.findMany({
     where: {
+      ...(selectedBarberId && { barberId: selectedBarberId }),
       date: {
         gte: startOfDay(today),
         lte: endOfDay(today),
@@ -17,6 +32,7 @@ const AdminPage = async () => {
     include: {
       services: { include: { service: true }, ...serviceDisplayOrder },
       user: true,
+      barber: { select: { name: true } },
     },
     orderBy: {
       date: "asc",
@@ -42,6 +58,12 @@ const AdminPage = async () => {
           </Link>
         </div>
       </div>
+
+      <AdminBarberFilter
+        barbers={barbers}
+        selectedBarberId={selectedBarberId}
+        basePath="/admin"
+      />
 
       {bookings.length === 0 && (
         <p className="text-muted-foreground text-sm">
