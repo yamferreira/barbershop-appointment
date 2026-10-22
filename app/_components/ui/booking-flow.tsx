@@ -221,12 +221,12 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
               className={cn(
                 "relative flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors",
                 isSelected
-                  ? "border-primary bg-primary/10"
+                  ? "border-[var(--brand-gold)] bg-[var(--brand-gold)]/10"
                   : "bg-secondary hover:border-border border-transparent",
               )}
             >
               {isSelected && (
-                <span className="bg-primary text-primary-foreground absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full">
+                <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--brand-gold)] text-[#2a2620]">
                   <CheckIcon className="h-3 w-3" />
                 </span>
               )}
@@ -239,7 +239,7 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
                 />
               </div>
               <p className="text-xs font-semibold">{service.name}</p>
-              <p className="text-primary text-xs font-bold">
+              <p className="text-xs font-bold text-[var(--brand-gold-text)]">
                 {formatPrice(service.price)}
               </p>
             </button>
@@ -248,7 +248,7 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
       </div>
 
       {selectedServices.length > 0 && (
-        <p className="text-sm text-gray-400">
+        <p className="text-muted-foreground text-sm">
           {selectedServicesLabel} = {formatDuration(totalDurationMinutes)}
         </p>
       )}
@@ -268,7 +268,7 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
           <CardContent className="space-y-5 p-5">
             <div>
               <h3 className="font-semibold">{selectedServicesLabel}</h3>
-              <p className="text-sm text-gray-400">
+              <p className="text-muted-foreground text-sm">
                 {formatDuration(totalDurationMinutes)}
               </p>
             </div>
@@ -295,7 +295,7 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
             )}
 
             {selectedDay && timeList.length === 0 && (
-              <p className="text-sm text-gray-400">
+              <p className="text-muted-foreground text-sm">
                 Nenhum horário disponível para essa data.
               </p>
             )}
@@ -311,19 +311,19 @@ const BookingFlow = ({ services, barbershop }: BookingFlowProps) => {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm text-gray-400">Data</h2>
+                    <h2 className="text-muted-foreground text-sm">Data</h2>
                     <p className="text-sm">
                       {format(selectedDay, "d 'de' MMMM", { locale: ptBR })}
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm text-gray-400">Horário</h2>
+                    <h2 className="text-muted-foreground text-sm">Horário</h2>
                     <p className="text-sm">{selectedTime}</p>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm text-gray-400">Barbearia</h2>
+                    <h2 className="text-muted-foreground text-sm">Barbearia</h2>
                     <p className="text-sm">{barbershop.name}</p>
                   </div>
                 </CardContent>

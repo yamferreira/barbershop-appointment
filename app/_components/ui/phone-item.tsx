@@ -16,7 +16,7 @@ const PhoneItem = ({ phone }: PhoneItemProps) => {
   return (
     <div className="flex justify-between" key={phone}>
       <div className="flex items-center gap-2">
-        <SmartphoneIcon className="text-primary" size={18} />
+        <SmartphoneIcon className="text-[var(--brand-gold)]" size={18} />
         <p className="text-sm">{phone}</p>
       </div>
       <Button

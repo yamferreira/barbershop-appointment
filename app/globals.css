@@ -39,6 +39,7 @@
   --color-card: var(--card);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand: var(--brand);
+  --font-display: var(--font-fraunces);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -80,6 +81,25 @@
   --sidebar-ring: oklch(0.708 0 0);
   --brand: oklch(0.47 0.17 293);
   --brand-foreground: oklch(0.985 0 0);
+
+  /* Nobre — fixed brand identity, does not follow light/dark theme. */
+  --brand-forest: #1d5b45;
+  --brand-gold: #f2c14e;
+  /*
+   * Darkened gold for continuous-reading TEXT (prices, calendar day
+   * numbers) on the light client-facing surfaces below: pure
+   * --brand-gold only has ~1.5:1 contrast against --brand-page /
+   * --brand-card-light, well under the 4.5:1 minimum for text. This
+   * variant keeps the same hue but is dark enough to read (~4.7-5:1).
+   * --brand-gold itself stays reserved for decorative use (icons,
+   * borders, selected-state fills) where that's an accepted tradeoff.
+   */
+  --brand-gold-text: #8a6512;
+  --brand-amber: #e8a33d;
+  --brand-cream: #f7f4ec;
+  --brand-page: #f4f1e8;
+  --brand-card-light: #faf7ee;
+  --brand-charcoal: #2a2620;
 }
 
 .dark {
@@ -128,4 +148,46 @@
   body {
     @apply bg-background text-foreground h-full;
   }
+}
+
+/*
+ * Scoped light theme for client-facing pages (home/booking flow,
+ * /bookings history, /barbershop/[id]). Header, footer and the home hero
+ * stay on --brand-forest regardless (they set that directly, not through
+ * this scope). /admin keeps the original forced dark theme above — this
+ * class is only applied inside client-facing page components, never in
+ * admin, so admin is unaffected.
+ *
+ * Reuses the same token names the shadcn primitives already read
+ * (bg-background, text-foreground, bg-card, bg-primary, ...) so nested
+ * components (Button, Input, Card, BookingCalendar's --brand accent)
+ * re-theme automatically without per-component overrides.
+ */
+.theme-nobre {
+  --background: var(--brand-page);
+  --foreground: var(--brand-charcoal);
+  --card: var(--brand-card-light);
+  --card-foreground: var(--brand-charcoal);
+  --popover: var(--brand-card-light);
+  --popover-foreground: var(--brand-charcoal);
+  --primary: var(--brand-amber);
+  --primary-foreground: #241f17;
+  --secondary: var(--brand-card-light);
+  --secondary-foreground: var(--brand-charcoal);
+  --muted: var(--brand-card-light);
+  --muted-foreground: #6b6152;
+  --accent: var(--brand-card-light);
+  --accent-foreground: var(--brand-charcoal);
+  --border: #dcd4be;
+  --input: #dcd4be;
+  --ring: var(--brand-amber);
+  /*
+   * BookingCalendar's selected-day fill / today-dot / hover-tint accent
+   * — decorative fills, so pure --brand-gold. The two spots in
+   * booking-calendar.tsx that render gold as TEXT (today's day number,
+   * hover day number) use --brand-gold-text directly instead of this
+   * token, for contrast.
+   */
+  --brand: var(--brand-gold);
+  --brand-foreground: var(--brand-charcoal);
 }
