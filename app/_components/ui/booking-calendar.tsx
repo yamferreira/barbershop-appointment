@@ -118,10 +118,12 @@ const BookingCalendar = ({
                   "relative flex aspect-square w-9 items-center justify-center rounded-full text-sm font-medium tabular-nums transition-all duration-150",
                   isOutside && "text-muted-foreground/40",
                   !isOutside && !isSelected && "text-foreground",
-                  isCurrentDay && !isSelected && "text-brand font-semibold",
+                  isCurrentDay &&
+                    !isSelected &&
+                    "font-semibold text-[var(--brand-gold-text)]",
                   !isDisabled &&
                     !isSelected &&
-                    "hover:bg-brand/10 hover:text-brand active:scale-90",
+                    "hover:bg-brand/10 hover:text-[var(--brand-gold-text)] active:scale-90",
                   isSelected &&
                     "bg-brand text-brand-foreground shadow-brand/30 shadow-md",
                   isDisabled &&

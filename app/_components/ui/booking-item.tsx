@@ -65,7 +65,7 @@ const BookingItem = ({ booking }: BookingItemProps) => {
           {/* Com vários serviços o início sozinho não diz quanto tempo o
               cliente vai ficar; a faixa diz. */}
           <p className="text-sm">{format(booking.date, "HH:mm")}</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-muted-foreground text-xs">
             até {formatBookingEnd(booking.date, booking.durationMinutes)}
           </p>
         </div>

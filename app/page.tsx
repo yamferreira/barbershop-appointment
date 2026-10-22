@@ -27,22 +27,22 @@ const Home = async () => {
     : []
 
   return (
-    <div>
+    <div className="flex min-h-full flex-col">
       <Header />
-      <div className="space-y-6 p-5">
-        <div>
-          <h2 className="text-xl font-bold">
-            Olá{firstName ? `, ${firstName}` : ""}!
-          </h2>
-          <p className="text-sm text-gray-400">
-            {barbershop ? `${barbershop.name} · ` : ""}
-            {capitalizedToday}.
-          </p>
-        </div>
+      <div className="bg-[var(--brand-forest)] px-5 pt-6 pb-8">
+        <h2 className="font-display text-3xl font-bold text-[var(--brand-cream)]">
+          Olá{firstName ? `, ${firstName}` : ""}!
+        </h2>
+        <p className="text-sm text-[var(--brand-cream)]/70">
+          {barbershop ? `${barbershop.name} · ` : ""}
+          {capitalizedToday}.
+        </p>
+      </div>
 
+      <div className="theme-nobre bg-background text-foreground flex flex-1 flex-col px-5 py-5">
         {confirmedBookings.length > 0 && (
-          <div>
-            <h2 className="mb-3 text-xs font-bold text-gray-400 uppercase">
+          <div className="pb-6">
+            <h2 className="text-muted-foreground mb-3 text-xs font-bold uppercase">
               Agendamentos
             </h2>
             <div className="space-y-3">
@@ -53,8 +53,8 @@ const Home = async () => {
           </div>
         )}
 
-        <div>
-          <h2 className="mb-3 text-xs font-bold text-gray-400 uppercase">
+        <div className="flex-1">
+          <h2 className="text-muted-foreground mb-3 text-xs font-bold uppercase">
             Novo agendamento
           </h2>
           {barbershop ? (
@@ -63,7 +63,7 @@ const Home = async () => {
               barbershop={{ name: barbershop.name }}
             />
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-muted-foreground text-sm">
               Nenhuma barbearia cadastrada ainda.
             </p>
           )}
