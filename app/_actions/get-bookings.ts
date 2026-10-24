@@ -11,10 +11,14 @@ interface GetBookingsParams {
 /**
  * Agendamentos que ocupam a agenda no dia, para montar a lista de horários.
  *
- * Não filtra por serviço de propósito: é um barbeiro só, então qualquer
- * agendamento ativo às 10:00 ocupa as 10:00, seja Corte ou Barba. Os dois
- * filtros espelham o índice `Booking_date_active_key`, que é unique em `date`
- * com `WHERE status <> 'CANCELADO'` — horário cancelado volta a ficar livre.
+ * Não filtra por serviço de propósito: para um mesmo barbeiro, qualquer
+ * agendamento ativo às 10:00 ocupa as 10:00, seja Corte ou Barba. Os filtros
+ * espelham o índice `Booking_barberId_date_active_key`, que é unique em
+ * (`barberId`, `date`) com `WHERE status <> 'CANCELADO'` — horário cancelado
+ * volta a ficar livre.
+ *
+ * Devolve as reservas de todos os barbeiros, com `barberId`: a agenda de cada
+ * um é independente, e quem monta a lista de horários separa por barbeiro.
  *
  * `durationMinutes` vem junto porque um agendamento ocupa um intervalo, não um
  * ponto: quem monta a lista de horários precisa saber onde cada um termina. É
@@ -33,7 +37,7 @@ export const getBookings = async ({ date }: GetBookingsParams) => {
       },
       status: { not: "CANCELADO" },
     },
-    select: { date: true, durationMinutes: true },
+    select: { barberId: true, date: true, durationMinutes: true },
   })
 }
 
@@ -56,6 +60,8 @@ export const getConfirmedBookings = async (userId: string) => {
         },
         ...serviceDisplayOrder,
       },
+      // Só o nome: `calendarToken` é segredo e estas listas vão para o client.
+      barber: { select: { name: true } },
     },
     orderBy: {
       date: "asc",
@@ -82,6 +88,8 @@ export const getFinishedBookings = async (userId: string) => {
         },
         ...serviceDisplayOrder,
       },
+      // Só o nome: `calendarToken` é segredo e estas listas vão para o client.
+      barber: { select: { name: true } },
     },
     orderBy: {
       date: "desc",

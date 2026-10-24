@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { endOfDay, format, set, startOfDay } from "date-fns"
 import { Prisma } from "@/app/generated/prisma"
 import { requireBarbeiro } from "@/app/_lib/auth"
-import { toDateOnly } from "@/app/_lib/date-only"
+import { findBlockForBarber } from "@/app/_lib/blocked-dates"
 import {
   CLOSING_HOUR,
   getBookingEnd,
@@ -19,13 +19,17 @@ import { db } from "@/app/_lib/prisma"
  * acontecer): cancelados e concluídos ficam fora do resumo, um dia só com
  * eles aparece sem indicador. A lista de detalhes da página continua
  * mostrando todos os status, com a marcação visual que já os diferencia.
+ *
+ * `barberId` restringe a contagem a um barbeiro; sem ele, soma todos.
  */
 export const getMonthBookingCounts = async ({
   from,
   to,
+  barberId,
 }: {
   from: Date
   to: Date
+  barberId?: string
 }) => {
   await requireBarbeiro()
 
@@ -36,6 +40,7 @@ export const getMonthBookingCounts = async ({
         lte: endOfDay(to),
       },
       status: "CONFIRMADO",
+      ...(barberId && { barberId }),
     },
     select: { date: true },
   })
@@ -116,9 +121,9 @@ export const rescheduleBooking = async (
     }
   }
 
-  const blockedDate = await db.blockedDate.findUnique({
-    where: { date: toDateOnly(newDate) },
-  })
+  // O reagendamento mantém o barbeiro do agendamento, então o bloqueio que
+  // vale é o da barbearia inteira ou o desse barbeiro.
+  const blockedDate = await findBlockForBarber(newDate, booking.barberId)
   if (blockedDate) {
     return {
       success: false as const,
@@ -143,12 +148,14 @@ export const rescheduleBooking = async (
   // Conflito é de intervalo, não de horário exato. Um agendamento ocupa
   // [date, date + durationMinutes), então reagendar para 11:00 algo de 70min
   // atropela o das 12:00 sem repetir a data — que é tudo que o índice único
-  // parcial `Booking_date_active_key` pega sozinho.
+  // parcial `Booking_barberId_date_active_key` pega sozinho.
   //
-  // Sem filtro por serviço: com um barbeiro só, qualquer agendamento ativo
-  // naquele intervalo conflita, independente do serviço.
+  // Sem filtro por serviço: para o mesmo barbeiro, qualquer agendamento ativo
+  // naquele intervalo conflita, independente do serviço. Os agendamentos dos
+  // outros barbeiros não entram: a agenda de cada um é independente.
   const dayBookings = await db.booking.findMany({
     where: {
+      barberId: booking.barberId,
       date: {
         gte: startOfDay(newDate),
         lte: endOfDay(newDate),

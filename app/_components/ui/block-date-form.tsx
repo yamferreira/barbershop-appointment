@@ -22,10 +22,18 @@ import {
   DialogTitle,
 } from "./dialog"
 
-const BlockDateForm = () => {
+interface BlockDateFormProps {
+  barbers: { id: string; name: string }[]
+}
+
+/** Valor do seletor para "barbearia inteira" (`barberId` nulo no servidor). */
+const WHOLE_SHOP = "all"
+
+const BlockDateForm = ({ barbers }: BlockDateFormProps) => {
   const [isPending, startTransition] = useTransition()
   const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined)
   const [reason, setReason] = useState("")
+  const [scope, setScope] = useState(WHOLE_SHOP)
   const [conflicts, setConflicts] = useState<ConflictingBooking[] | null>(null)
 
   const resetForm = () => {
@@ -37,7 +45,12 @@ const BlockDateForm = () => {
     if (!selectedDay) return
 
     startTransition(async () => {
-      const result = await blockDate(selectedDay, reason, confirmed)
+      const result = await blockDate(
+        selectedDay,
+        reason,
+        confirmed,
+        scope === WHOLE_SHOP ? null : scope,
+      )
 
       if (!result.success) {
         if (result.needsConfirmation) {
@@ -90,6 +103,23 @@ const BlockDateForm = () => {
       </div>
 
       <div className="space-y-1">
+        <Label htmlFor="block-scope">Quem não atende</Label>
+        <select
+          id="block-scope"
+          value={scope}
+          onChange={(event) => setScope(event.target.value)}
+          className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+        >
+          <option value={WHOLE_SHOP}>Barbearia inteira</option>
+          {barbers.map((barber) => (
+            <option key={barber.id} value={barber.id}>
+              {barber.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1">
         <Label htmlFor="block-reason">Motivo (opcional)</Label>
         <Input
           id="block-reason"
@@ -135,7 +165,7 @@ const BlockDateForm = () => {
                 <div>
                   <p className="text-sm font-semibold">{booking.clientName}</p>
                   <p className="text-muted-foreground text-sm">
-                    {booking.serviceNames}
+                    {booking.serviceNames} · {booking.barberName}
                   </p>
                 </div>
                 <p className="text-sm font-semibold">{booking.time}</p>

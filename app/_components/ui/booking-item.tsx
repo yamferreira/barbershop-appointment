@@ -9,6 +9,7 @@ import {
   formatServiceNames,
 } from "../../_lib/booking-display"
 import type {
+  Barber,
   Barbershop,
   Booking,
   BarbershopService,
@@ -16,6 +17,7 @@ import type {
 
 interface BookingItemProps {
   booking: Booking & {
+    barber: Pick<Barber, "name">
     services: {
       service: BarbershopService & {
         barbershop: Barbershop
@@ -53,6 +55,10 @@ const BookingItem = ({ booking }: BookingItemProps) => {
               <p className="truncate text-sm">{barbershop.name}</p>
             </div>
           )}
+
+          <p className="text-muted-foreground truncate text-sm">
+            com {booking.barber.name}
+          </p>
 
           {isConfirmed && <CancelBookingDialog bookingId={booking.id} />}
         </div>

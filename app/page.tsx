@@ -4,6 +4,7 @@ import BookingItem from "./_components/ui/booking-item"
 import BookingFlow from "./_components/ui/booking-flow"
 import { auth } from "./_lib/auth-config"
 import { getConfirmedBookings } from "./_actions/get-bookings"
+import { getActiveBarbers } from "./_actions/get-barbers"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -12,6 +13,7 @@ const Home = async () => {
   const barbershop = await db.barbershop.findFirst({
     include: { services: true },
   })
+  const barbers = await getActiveBarbers()
   const confirmedBookings = session?.user
     ? await getConfirmedBookings(session.user.id as string)
     : []
@@ -61,6 +63,7 @@ const Home = async () => {
             <BookingFlow
               services={services}
               barbershop={{ name: barbershop.name }}
+              barbers={barbers}
             />
           ) : (
             <p className="text-muted-foreground text-sm">

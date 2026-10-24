@@ -25,6 +25,8 @@ import { cn } from "@/app/_lib/utils"
 interface AdminMonthCalendarProps {
   selectedDate: Date
   initialMonthCounts: Record<string, number>
+  /** Barbeiro filtrado; `undefined` conta todos. */
+  barberId?: string
 }
 
 const capitalize = (text: string) =>
@@ -33,6 +35,7 @@ const capitalize = (text: string) =>
 const AdminMonthCalendar = ({
   selectedDate,
   initialMonthCounts,
+  barberId,
 }: AdminMonthCalendarProps) => {
   const router = useRouter()
   const pathname = usePathname()
@@ -49,8 +52,10 @@ const AdminMonthCalendar = ({
       return
     }
     const { start, end } = getMonthGridRange(visibleMonth)
-    getMonthBookingCounts({ from: start, to: end }).then(setMonthCounts)
-  }, [visibleMonth])
+    getMonthBookingCounts({ from: start, to: end, barberId }).then(
+      setMonthCounts,
+    )
+  }, [visibleMonth, barberId])
 
   const weekdayLabels = eachDayOfInterval({
     start: startOfWeek(new Date(), { locale: ptBR }),
@@ -62,7 +67,9 @@ const AdminMonthCalendar = ({
 
   const handleDayClick = (day: Date) => {
     if (!isSameMonth(day, visibleMonth)) setVisibleMonth(startOfMonth(day))
-    router.push(`${pathname}?data=${format(day, "yyyy-MM-dd")}`)
+    const search = new URLSearchParams({ data: format(day, "yyyy-MM-dd") })
+    if (barberId) search.set("barbeiro", barberId)
+    router.push(`${pathname}?${search.toString()}`)
     requestAnimationFrame(() => {
       document
         .getElementById("agendamentos-do-dia")
