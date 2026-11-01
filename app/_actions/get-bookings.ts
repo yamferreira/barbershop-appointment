@@ -48,6 +48,9 @@ export const getConfirmedBookings = async (userId: string) => {
       date: {
         gte: new Date(),
       },
+      // Cancelar pelo cliente só muda o status; sem este filtro o agendamento
+      // cancelado continuaria na lista, com o botão de cancelar.
+      status: { not: "CANCELADO" },
     },
     include: {
       services: {

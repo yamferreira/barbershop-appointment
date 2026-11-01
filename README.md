@@ -140,7 +140,6 @@ Decisões de modelagem relevantes:
 - Não há relatório de faturamento.
 - Não é possível registrar um atendimento "walk-in" (sem passar pela agenda) direto pelo painel.
 - Cliente que agenda sem login não consegue ver nem cancelar a própria reserva depois — não existe vínculo entre pessoa e agendamento sem conta.
-- O cancelamento feito pelo cliente remove o registro, em vez de marcá-lo como cancelado (o admin, ao cancelar, atualiza o status). Na prática, o barbeiro não é notificado quando um cliente desmarca.
 
 ---
 
@@ -218,7 +217,6 @@ prisma/
 
 - [ ] Remover a coluna legada `Booking.serviceId` (migração de finalização, após período de estabilização em produção)
 - [ ] Notificações de confirmação/cancelamento
-- [ ] Cancelamento do cliente atualizar status em vez de remover o registro
 - [ ] Horário de funcionamento configurável pelo barbeiro
 - [ ] Edição de catálogo de serviços pela interface
 - [ ] Relatório de faturamento

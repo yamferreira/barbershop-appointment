@@ -34,9 +34,9 @@ const AdminPage = async ({ searchParams }: AdminPageProps) => {
       user: true,
       barber: { select: { name: true } },
     },
-    orderBy: {
-      date: "asc",
-    },
+    // Mesma ordem de /admin/agendamentos: CONFIRMADO, CONCLUIDO, CANCELADO
+    // (ordem de declaração do enum), com o horário como desempate.
+    orderBy: [{ status: "asc" }, { date: "asc" }],
   })
 
   return (
