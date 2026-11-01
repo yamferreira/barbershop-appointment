@@ -170,6 +170,8 @@ Preencha o `.env` com:
 DATABASE_URL="postgresql://.../neondb?sslmode=require"     # endpoint com pooler
 DIRECT_URL="postgresql://.../neondb?sslmode=require"        # endpoint direto, sem "-pooler"
 
+AUTH_SECRET="..."   # openssl rand -base64 32
+
 GOOGLE_CLIENT_ID="..."
 GOOGLE_CLIENT_SECRET="..."
 
