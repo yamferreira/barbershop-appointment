@@ -33,21 +33,25 @@ Cada barbeiro tem a **própria agenda, um recurso serializado**: um mesmo barbei
 ## Tecnologias
 
 **Framework e linguagem**
+
 - [Next.js 15.5](https://nextjs.org/) (App Router) — Server Components por padrão, Server Actions para toda escrita
 - React 19
 - TypeScript (modo strict)
 
 **Dados**
+
 - [Prisma 5.15](https://www.prisma.io/) + PostgreSQL ([Neon](https://neon.tech/))
 - Conexão dupla (`url` via pooler / `directUrl` direto) — necessária porque o Prisma Migrate usa advisory locks de sessão, incompatíveis com connection pooling em modo transaction
 - Migrações versionadas, incluindo SQL cru para um índice único parcial que o Prisma não expressa de forma declarativa
 
 **Autenticação**
+
 - [Auth.js / NextAuth v5](https://authjs.dev/) (beta), provider Google, `PrismaAdapter`
 - Sessão com estratégia `database`, `maxAge` de 90 dias
 - Controle de acesso por `role` (`CLIENTE` / `BARBEIRO`)
 
 **Interface**
+
 - Tailwind CSS v4
 - [shadcn/ui](https://ui.shadcn.com/) sobre primitivos Radix (dialog, sheet, avatar, label, slot)
 - lucide-react, sonner (toasts), next-themes
@@ -55,6 +59,7 @@ Cada barbeiro tem a **própria agenda, um recurso serializado**: um mesmo barbei
 - Calendário de agendamento construído do zero (`booking-calendar.tsx`), para suportar regras de negócio de dias desabilitados
 
 **Qualidade e automação**
+
 - ESLint + Prettier (com `prettier-plugin-tailwindcss`)
 - Husky + lint-staged (roda lint/format em cada commit)
 - [BrasilAPI](https://brasilapi.com.br/) como fonte de feriados nacionais
@@ -93,29 +98,29 @@ Decisões de modelagem relevantes:
 
 ### Para o cliente
 
-| Recurso | Descrição |
-|---|---|
-| Home única | Saudação, data por extenso, agendamentos confirmados e fluxo de marcação — tudo em uma tela |
-| Múltiplos serviços | Seleção em grid; duração e preço total somados em tempo real |
-| Calendário inteligente | Domingos, datas passadas e dias bloqueados para todos os barbeiros já aparecem desabilitados |
-| Escolha do barbeiro | Depois do dia, uma seção de horários por barbeiro ("Horário do Luiz", "Horário do TH"); escolher um horário define o barbeiro |
-| Horários reais | Em cada seção só aparecem os horários que cabem sem colidir com outro agendamento daquele barbeiro nem ultrapassar o fechamento |
-| Agendamento sem login | Basta informar o nome (telefone opcional) — login com Google é só uma opção |
-| Histórico | Agendamentos confirmados e finalizados, separados, com faixa de horário e o barbeiro ("com Luiz") |
-| Cancelamento | Pelo próprio cliente, com confirmação |
-| Página informativa | Endereço, telefones, descrição e catálogo de serviços com preço e duração |
+| Recurso                | Descrição                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Home única             | Saudação, data por extenso, agendamentos confirmados e fluxo de marcação — tudo em uma tela                                     |
+| Múltiplos serviços     | Seleção em grid; duração e preço total somados em tempo real                                                                    |
+| Calendário inteligente | Domingos, datas passadas e dias bloqueados para todos os barbeiros já aparecem desabilitados                                    |
+| Escolha do barbeiro    | Depois do dia, uma seção de horários por barbeiro ("Horário do Luiz", "Horário do TH"); escolher um horário define o barbeiro   |
+| Horários reais         | Em cada seção só aparecem os horários que cabem sem colidir com outro agendamento daquele barbeiro nem ultrapassar o fechamento |
+| Agendamento sem login  | Basta informar o nome (telefone opcional) — login com Google é só uma opção                                                     |
+| Histórico              | Agendamentos confirmados e finalizados, separados, com faixa de horário e o barbeiro ("com Luiz")                               |
+| Cancelamento           | Pelo próprio cliente, com confirmação                                                                                           |
+| Página informativa     | Endereço, telefones, descrição e catálogo de serviços com preço e duração                                                       |
 
 ### Para o barbeiro (`/admin`)
 
-| Recurso | Descrição |
-|---|---|
-| Dashboard | Agendamentos do dia, ordenados por horário, com o barbeiro de cada um e filtro Todos / Luiz / TH |
-| Agenda mensal | Calendário com contagem de agendamentos ativos por dia, respeitando o filtro de barbeiro |
-| Ordenação inteligente | Lista do dia agrupada por status: Confirmado → Concluído → Cancelado |
-| Ações por agendamento | Concluir, cancelar, reagendar |
-| Reagendamento validado | Mantém o barbeiro do agendamento; bloqueia domingo, dia indisponível, fechamento e sobreposição na agenda dele |
-| Bloqueio de dias | Barbearia inteira ou um barbeiro só, com motivo opcional; avisa (sem cancelar automaticamente) se já houver agendamentos no dia |
-| Feriados automáticos | Sincronização manual ou via cron dos feriados nacionais (BrasilAPI), excluindo dezembro |
+| Recurso                | Descrição                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard              | Agendamentos do dia, ordenados por horário, com o barbeiro de cada um e filtro Todos / Luiz / TH                                |
+| Agenda mensal          | Calendário com contagem de agendamentos ativos por dia, respeitando o filtro de barbeiro                                        |
+| Ordenação inteligente  | Lista do dia agrupada por status: Confirmado → Concluído → Cancelado                                                            |
+| Ações por agendamento  | Concluir, cancelar, reagendar                                                                                                   |
+| Reagendamento validado | Mantém o barbeiro do agendamento; bloqueia domingo, dia indisponível, fechamento e sobreposição na agenda dele                  |
+| Bloqueio de dias       | Barbearia inteira ou um barbeiro só, com motivo opcional; avisa (sem cancelar automaticamente) se já houver agendamentos no dia |
+| Feriados automáticos   | Sincronização manual ou via cron dos feriados nacionais (BrasilAPI), excluindo dezembro                                         |
 
 ---
 
@@ -146,6 +151,7 @@ Decisões de modelagem relevantes:
 ## Como rodar localmente
 
 ### Pré-requisitos
+
 - Node.js 20+
 - Um banco PostgreSQL (recomendado: [Neon](https://neon.tech/))
 - Credenciais OAuth do Google
@@ -169,6 +175,8 @@ Preencha o `.env` com:
 ```env
 DATABASE_URL="postgresql://.../neondb?sslmode=require"     # endpoint com pooler
 DIRECT_URL="postgresql://.../neondb?sslmode=require"        # endpoint direto, sem "-pooler"
+
+AUTH_SECRET="..."   # openssl rand -base64 32
 
 GOOGLE_CLIENT_ID="..."
 GOOGLE_CLIENT_SECRET="..."

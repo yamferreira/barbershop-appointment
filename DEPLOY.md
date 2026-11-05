@@ -12,6 +12,42 @@ aplica as migrações já commitadas, em ordem, sem gerar nada novo.
 Você pode acumular várias migrações no dev e aplicá-las todas de uma vez no
 deploy — não precisa aplicar uma por uma.
 
+## Variáveis de ambiente
+
+O modelo está em `.env.example`. Em produção (Vercel: _Settings → Environment
+Variables_) todas são obrigatórias.
+
+| Variável               | Para quê                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`         | Conexão do app com o Postgres, pelo endpoint **com pooler** (host com `-pooler`). É a que o app usa em runtime.                                                                               |
+| `DIRECT_URL`           | Conexão **direta**: o mesmo host **sem** `-pooler`. Só serve para migrações (`prisma migrate`), que usam advisory lock de sessão e não funcionam por pooler. O app não a usa em runtime.      |
+| `AUTH_SECRET`          | Segredo do Auth.js, que assina e criptografa os cookies de sessão. Gere com `openssl rand -base64 32`. Use um valor diferente em cada ambiente; trocar o valor derruba as sessões existentes. |
+| `GOOGLE_CLIENT_ID`     | ID do cliente OAuth do Google (login dos clientes e do barbeiro).                                                                                                                             |
+| `GOOGLE_CLIENT_SECRET` | Segredo do cliente OAuth do Google.                                                                                                                                                           |
+| `CRON_SECRET`          | Segredo longo e aleatório que protege `/api/cron/sync-holidays` (ver a seção de cron abaixo). Sem ele a rota responde 500.                                                                    |
+
+### Login com Google: URI de redirecionamento
+
+No Google Cloud Console (_APIs e serviços → Credenciais → ID do cliente OAuth_),
+em **URIs de redirecionamento autorizados**, cadastre:
+
+```
+https://SEU-DOMINIO/api/auth/callback/google
+```
+
+Para desenvolvimento local, cadastre também
+`http://localhost:3000/api/auth/callback/google`. Se a URI não bater exatamente
+com a do deploy, o login falha com `redirect_uri_mismatch`.
+
+### Build na Vercel
+
+- **`prisma generate`** roda no `postinstall` (`package.json`). O client é
+  gerado em `app/generated/prisma`, que está no `.gitignore`; sem esse passo o
+  build quebraria por falta do client.
+- **`prisma migrate deploy` NÃO roda no build.** As migrações são aplicadas
+  **manualmente**, antes (ou junto) do deploy, usando a `DIRECT_URL` de produção
+  (passo a passo abaixo). Assim um deploy nunca altera o banco por conta própria.
+
 ## Passo a passo do deploy
 
 1. Garanta que tudo está commitado e no remoto:
@@ -21,13 +57,13 @@ deploy — não precisa aplicar uma por uma.
    git push origin master
    ```
 
-2. No ambiente que tem acesso ao banco de produção, com a `DATABASE_URL` de
-   **produção** carregada:
+2. No ambiente que tem acesso ao banco de produção, com a `DATABASE_URL` e a
+   `DIRECT_URL` de **produção** carregadas (o `migrate deploy` conecta pela
+   `DIRECT_URL`):
 
    ```bash
    git pull                    # traz todas as migrações commitadas
    npx prisma migrate deploy   # aplica as pendentes, em ordem
-   npx prisma generate         # regenera o client (se o deploy não fizer isso)
    ```
 
 3. Build e deploy da app normalmente (`npm run build` / plataforma de hosting).
@@ -79,7 +115,7 @@ e nunca mexe em bloqueio manual, então rodar de novo não duplica nada.
 openssl rand -hex 32
 ```
 
-Salve como `CRON_SECRET` nas variáveis de ambiente da produção. **Sem essa
+Qualquer string longa e aleatória serve. Salve como `CRON_SECRET` nas variáveis de ambiente da produção. **Sem essa
 variável a rota responde 500 e não roda** — ela falha fechada de propósito, pra
 não virar um gatilho público se o deploy esquecer de configurá-la.
 
