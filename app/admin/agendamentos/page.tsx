@@ -4,7 +4,6 @@ import { db } from "@/app/_lib/prisma"
 import AdminMonthCalendar from "@/app/_components/ui/admin-month-calendar"
 import AdminBookingItem from "@/app/_components/ui/admin-booking-item"
 import AdminBarberFilter from "@/app/_components/ui/admin-barber-filter"
-import { hasMultipleActiveBarbers } from "@/app/_lib/barbers"
 import { getMonthGridRange } from "@/app/_lib/calendar-grid"
 import { serviceDisplayOrder } from "@/app/_lib/booking-display"
 import { getMonthBookingCounts } from "./actions"
@@ -28,13 +27,14 @@ const AdminAgendamentosPage = async ({
   // Com um só barbeiro ativo o filtro some e a lista mostra tudo, inclusive o
   // histórico de quem saiu. Um `?barbeiro=` que tenha ficado na URL é ignorado:
   // sem o filtro na tela, não haveria como voltar para "Todos".
-  const [barbers, showBarberFilter] = await Promise.all([
-    db.barber.findMany({
-      select: { id: true, name: true },
-      orderBy: [{ createdAt: "asc" }, { name: "asc" }],
-    }),
-    hasMultipleActiveBarbers(),
-  ])
+  const barbers = await db.barber.findMany({
+    select: { id: true, name: true, active: true },
+    orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+  })
+  const activeBarbers = barbers.filter((barber) => barber.active)
+  const showBarberFilter = activeBarbers.length > 1
+  const soleActiveBarberId =
+    activeBarbers.length === 1 ? activeBarbers[0].id : undefined
   const selectedBarberId = showBarberFilter
     ? barbers.find((barber) => barber.id === barbeiro)?.id
     : undefined
@@ -99,7 +99,11 @@ const AdminAgendamentosPage = async ({
         {bookings.length > 0 && (
           <div className="space-y-3">
             {bookings.map((booking) => (
-              <AdminBookingItem key={booking.id} booking={booking} />
+              <AdminBookingItem
+                key={booking.id}
+                booking={booking}
+                soleActiveBarberId={soleActiveBarberId}
+              />
             ))}
           </div>
         )}
