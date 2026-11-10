@@ -24,9 +24,11 @@ interface BookingItemProps {
       }
     }[]
   }
+  /** Com um só barbeiro ativo o "com Fulano" é redundante e fica de fora. */
+  showBarber?: boolean
 }
 
-const BookingItem = ({ booking }: BookingItemProps) => {
+const BookingItem = ({ booking, showBarber = true }: BookingItemProps) => {
   const isConfirmed = isFuture(booking.date)
   // Todo serviço do agendamento é da mesma barbearia, então o primeiro
   // responde por todos.
@@ -56,9 +58,11 @@ const BookingItem = ({ booking }: BookingItemProps) => {
             </div>
           )}
 
-          <p className="text-muted-foreground truncate text-sm">
-            com {booking.barber.name}
-          </p>
+          {showBarber && (
+            <p className="text-muted-foreground truncate text-sm">
+              com {booking.barber.name}
+            </p>
+          )}
 
           {isConfirmed && <CancelBookingDialog bookingId={booking.id} />}
         </div>

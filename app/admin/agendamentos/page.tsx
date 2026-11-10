@@ -4,6 +4,7 @@ import { db } from "@/app/_lib/prisma"
 import AdminMonthCalendar from "@/app/_components/ui/admin-month-calendar"
 import AdminBookingItem from "@/app/_components/ui/admin-booking-item"
 import AdminBarberFilter from "@/app/_components/ui/admin-barber-filter"
+import { hasMultipleActiveBarbers } from "@/app/_lib/barbers"
 import { getMonthGridRange } from "@/app/_lib/calendar-grid"
 import { serviceDisplayOrder } from "@/app/_lib/booking-display"
 import { getMonthBookingCounts } from "./actions"
@@ -23,11 +24,20 @@ const AdminAgendamentosPage = async ({
 
   // Admin enxerga todos os barbeiros (inclusive inativos, que ainda podem ter
   // agendamentos). Um id desconhecido na URL vira "Todos".
-  const barbers = await db.barber.findMany({
-    select: { id: true, name: true },
-    orderBy: [{ createdAt: "asc" }, { name: "asc" }],
-  })
-  const selectedBarberId = barbers.find((barber) => barber.id === barbeiro)?.id
+  //
+  // Com um só barbeiro ativo o filtro some e a lista mostra tudo, inclusive o
+  // histórico de quem saiu. Um `?barbeiro=` que tenha ficado na URL é ignorado:
+  // sem o filtro na tela, não haveria como voltar para "Todos".
+  const [barbers, showBarberFilter] = await Promise.all([
+    db.barber.findMany({
+      select: { id: true, name: true },
+      orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+    }),
+    hasMultipleActiveBarbers(),
+  ])
+  const selectedBarberId = showBarberFilter
+    ? barbers.find((barber) => barber.id === barbeiro)?.id
+    : undefined
 
   const [bookings, monthCounts] = await Promise.all([
     db.booking.findMany({
@@ -60,12 +70,14 @@ const AdminAgendamentosPage = async ({
     <div className="space-y-6 p-5">
       <h1 className="text-xl font-bold">Agendamentos</h1>
 
-      <AdminBarberFilter
-        barbers={barbers}
-        selectedBarberId={selectedBarberId}
-        basePath="/admin/agendamentos"
-        params={{ data }}
-      />
+      {showBarberFilter && (
+        <AdminBarberFilter
+          barbers={barbers}
+          selectedBarberId={selectedBarberId}
+          basePath="/admin/agendamentos"
+          params={{ data }}
+        />
+      )}
 
       <AdminMonthCalendar
         selectedDate={selectedDate}

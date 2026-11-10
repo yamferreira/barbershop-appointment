@@ -6,6 +6,7 @@ import {
   getConfirmedBookings,
   getFinishedBookings,
 } from "@/app/_actions/get-bookings"
+import { hasMultipleActiveBarbers } from "@/app/_lib/barbers"
 
 const BookingsPage = async () => {
   const session = await auth()
@@ -14,10 +15,11 @@ const BookingsPage = async () => {
     return redirect("/")
   }
 
-  const confirmedBookings = await getConfirmedBookings(
-    session.user.id as string,
-  )
-  const finishedBookings = await getFinishedBookings(session.user.id as string)
+  const [confirmedBookings, finishedBookings, showBarber] = await Promise.all([
+    getConfirmedBookings(session.user.id as string),
+    getFinishedBookings(session.user.id as string),
+    hasMultipleActiveBarbers(),
+  ])
 
   return (
     <div className="flex min-h-full flex-col">
@@ -38,7 +40,11 @@ const BookingsPage = async () => {
               Confirmados
             </h2>
             {confirmedBookings.map((booking) => (
-              <BookingItem key={booking.id} booking={booking} />
+              <BookingItem
+                key={booking.id}
+                booking={booking}
+                showBarber={showBarber}
+              />
             ))}
           </div>
         )}
@@ -49,7 +55,11 @@ const BookingsPage = async () => {
               Finalizados
             </h2>
             {finishedBookings.map((booking) => (
-              <BookingItem key={booking.id} booking={booking} />
+              <BookingItem
+                key={booking.id}
+                booking={booking}
+                showBarber={showBarber}
+              />
             ))}
           </div>
         )}

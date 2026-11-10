@@ -49,7 +49,11 @@ const Home = async () => {
             </h2>
             <div className="space-y-3">
               {confirmedBookings.map((booking) => (
-                <BookingItem key={booking.id} booking={booking} />
+                <BookingItem
+                  key={booking.id}
+                  booking={booking}
+                  showBarber={barbers.length > 1}
+                />
               ))}
             </div>
           </div>
