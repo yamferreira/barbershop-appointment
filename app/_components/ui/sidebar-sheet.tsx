@@ -2,7 +2,14 @@
 
 import { Button } from "./button"
 import GoogleIcon from "./google-icon"
-import { CalendarIcon, HomeIcon, LogInIcon, LogOutIcon } from "lucide-react"
+import {
+  CalendarIcon,
+  CalendarRangeIcon,
+  HomeIcon,
+  LayoutDashboardIcon,
+  LogInIcon,
+  LogOutIcon,
+} from "lucide-react"
 import { SheetContent, SheetHeader, SheetTitle, SheetClose } from "./sheet"
 import Link from "next/link"
 import {
@@ -92,6 +99,30 @@ const SideBarSheet = () => {
           </Button>
         </SheetClose>
       </div>
+
+      {/* Atalho para o painel. Só aparece para BARBEIRO, mas é conveniência:
+          quem protege /admin é o layout (`requireBarbeiro`), não este menu. */}
+      {data?.user?.role === "BARBEIRO" && (
+        <div className="flex flex-col gap-2 border-b border-solid p-5 py-5">
+          <SheetClose asChild>
+            <Button className="justify-start gap-2" variant="ghost" asChild>
+              <Link href="/admin">
+                <LayoutDashboardIcon size={18} />
+                Painel do barbeiro
+              </Link>
+            </Button>
+          </SheetClose>
+
+          <SheetClose asChild>
+            <Button className="justify-start gap-2" variant="ghost" asChild>
+              <Link href="/admin/calendario">
+                <CalendarRangeIcon size={18} />
+                Calendário
+              </Link>
+            </Button>
+          </SheetClose>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2 p-5 py-5">
         <Button

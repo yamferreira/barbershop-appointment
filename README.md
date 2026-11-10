@@ -88,7 +88,7 @@ Decisões de modelagem relevantes:
 
 - **`Booking.durationMinutes` é um snapshot.** A duração é congelada no momento da reserva, e não recalculada a partir do catálogo de serviços — editar a duração de um serviço no futuro não pode reescrever agendamentos já feitos.
 - **Índice único parcial** (`Booking_barberId_date_active_key`, em `(barberId, date) WHERE status <> 'CANCELADO'`) garante, no nível do banco, que um mesmo barbeiro não tenha dois agendamentos ativos exatamente no mesmo instante — e libera o slot automaticamente quando um agendamento é cancelado.
-- **`Barber` é separado de `User`.** Um barbeiro pode nem ter conta no sistema, e qualquer usuário com papel `BARBEIRO` enxerga a agenda de todos. `calendarToken` (32 bytes aleatórios, hex) só é criado e guardado: nenhuma rota o usa ainda, e por ser segredo nenhuma consulta que chegue ao client o seleciona.
+- **`Barber` é separado de `User`.** Um barbeiro pode nem ter conta no sistema, e qualquer usuário com papel `BARBEIRO` enxerga a agenda de todos. `calendarToken` (32 bytes aleatórios, hex) é a credencial do [feed de calendário](#feed-de-calendário): só aparece na URL do feed e em `/admin/calendario`, e nenhuma outra consulta o seleciona.
 - **`BlockedDate.barberId` opcional.** Nulo bloqueia a barbearia inteira (feriados e sincronização continuam assim); preenchido bloqueia só aquele barbeiro. A unicidade fica em dois índices únicos parciais (`WHERE barberId IS NULL` e `WHERE barberId IS NOT NULL`), porque o Postgres trata `NULL` como distinto.
 - **Agendamentos suportam múltiplos serviços** via tabela de junção `BookingService` (relação N:N com `BarbershopService`).
 
@@ -121,6 +121,20 @@ Decisões de modelagem relevantes:
 | Reagendamento validado | Mantém o barbeiro do agendamento; bloqueia domingo, dia indisponível, fechamento e sobreposição na agenda dele                  |
 | Bloqueio de dias       | Barbearia inteira ou um barbeiro só, com motivo opcional; avisa (sem cancelar automaticamente) se já houver agendamentos no dia |
 | Feriados automáticos   | Sincronização manual ou via cron dos feriados nacionais (BrasilAPI), excluindo dezembro                                         |
+| Calendário             | Link de assinatura da agenda de cada barbeiro (Google Agenda, iPhone), com "Gerar novo link" para invalidar o anterior          |
+
+Usuários com papel `BARBEIRO` veem "Painel do barbeiro" e "Calendário" no menu lateral do site.
+
+### Feed de calendário
+
+`GET /api/calendar/<calendarToken>.ics` entrega a agenda de um barbeiro em iCalendar (RFC 5545), para assinar em `/admin/calendario`:
+
+- agendamentos não cancelados de 30 dias atrás até 180 dias à frente, em UTC; título "Serviços · Cliente" e o telefone na descrição;
+- UID estável (o id do agendamento): reagendar move o evento, cancelar o remove na próxima atualização;
+- token inexistente, malformado ou de barbeiro inativo respondem o mesmo 404; resposta com `Cache-Control: no-store`;
+- quem tem o link vê nomes e telefones. "Gerar novo link" troca o token e o antigo para de funcionar na hora.
+
+**A sincronização é só de ida.** O calendário lê o feed; editar ou apagar o evento lá não muda nada no sistema. **O Google Agenda pode levar horas para refletir mudanças** (ele decide quando buscar o feed de novo e ignora a sugestão de intervalo); o calendário do iPhone costuma atualizar a cada hora.
 
 ---
 
@@ -140,6 +154,7 @@ Decisões de modelagem relevantes:
 ## Limitações conhecidas
 
 - Não há envio de notificações (e-mail, SMS ou WhatsApp) — nem confirmação, nem lembrete, nem aviso de cancelamento.
+- O feed de calendário é só de ida e depende do ritmo de atualização de cada app; no Google Agenda, uma mudança pode levar horas para aparecer.
 - Catálogo de serviços (preço, duração) não é editável pela interface — mudanças exigem acesso direto ao banco.
 - Horário de funcionamento é fixo no código (hoje: 08:00–20:00, fechado aos domingos) — não é configurável pelo barbeiro.
 - Não há relatório de faturamento.
@@ -203,9 +218,11 @@ A aplicação sobe em `http://localhost:3000`.
 app/
 ├── admin/                  # área protegida do barbeiro
 │   ├── agendamentos/       # listagem e reagendamento
-│   └── bloqueios/          # bloqueio de dias e feriados
+│   ├── bloqueios/          # bloqueio de dias e feriados
+│   └── calendario/         # links do feed de calendário
 ├── api/
 │   ├── auth/                # NextAuth
+│   ├── calendar/[token]/    # feed .ics da agenda do barbeiro
 │   └── cron/sync-holidays/  # sincronização automática de feriados
 ├── barbershop/[id]/        # página informativa (somente leitura)
 ├── bookings/                # histórico do cliente

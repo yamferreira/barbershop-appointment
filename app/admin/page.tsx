@@ -66,6 +66,12 @@ const AdminPage = async ({ searchParams }: AdminPageProps) => {
           >
             Bloquear dias
           </Link>
+          <Link
+            href="/admin/calendario"
+            className="hover:text-brand text-sm font-medium underline-offset-4 hover:underline"
+          >
+            Calendário
+          </Link>
         </div>
       </div>
 
