@@ -5,7 +5,7 @@ import BookingItem from "@/app/_components/ui/booking-item"
 import {
   getConfirmedBookings,
   getFinishedBookings,
-} from "@/app/_actions/get-bookings"
+} from "@/app/_lib/user-bookings"
 import { hasMultipleActiveBarbers } from "@/app/_lib/barbers"
 
 const BookingsPage = async () => {
@@ -16,8 +16,8 @@ const BookingsPage = async () => {
   }
 
   const [confirmedBookings, finishedBookings, showBarber] = await Promise.all([
-    getConfirmedBookings(session.user.id as string),
-    getFinishedBookings(session.user.id as string),
+    getConfirmedBookings(),
+    getFinishedBookings(),
     hasMultipleActiveBarbers(),
   ])
 

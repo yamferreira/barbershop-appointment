@@ -1,8 +1,11 @@
 "use server"
 
 import { endOfDay, startOfDay } from "date-fns"
-import { serviceDisplayOrder } from "../_lib/booking-display"
 import { db } from "../_lib/prisma"
+
+// Os agendamentos do próprio usuário (home e /bookings) NÃO moram aqui: este
+// arquivo é "use server" e todo export dele é endpoint público. Eles estão em
+// `app/_lib/user-bookings.ts`, que é server-only e lê o usuário da sessão.
 
 interface GetBookingsParams {
   date: Date
@@ -38,64 +41,5 @@ export const getBookings = async ({ date }: GetBookingsParams) => {
       status: { not: "CANCELADO" },
     },
     select: { barberId: true, date: true, durationMinutes: true },
-  })
-}
-
-export const getConfirmedBookings = async (userId: string) => {
-  return db.booking.findMany({
-    where: {
-      userId,
-      date: {
-        gte: new Date(),
-      },
-      // Cancelar pelo cliente só muda o status; sem este filtro o agendamento
-      // cancelado continuaria na lista, com o botão de cancelar.
-      status: { not: "CANCELADO" },
-    },
-    include: {
-      services: {
-        include: {
-          service: {
-            include: {
-              barbershop: true,
-            },
-          },
-        },
-        ...serviceDisplayOrder,
-      },
-      // Só o nome: `calendarToken` é segredo e estas listas vão para o client.
-      barber: { select: { name: true } },
-    },
-    orderBy: {
-      date: "asc",
-    },
-  })
-}
-
-export const getFinishedBookings = async (userId: string) => {
-  return db.booking.findMany({
-    where: {
-      userId,
-      date: {
-        lt: new Date(),
-      },
-    },
-    include: {
-      services: {
-        include: {
-          service: {
-            include: {
-              barbershop: true,
-            },
-          },
-        },
-        ...serviceDisplayOrder,
-      },
-      // Só o nome: `calendarToken` é segredo e estas listas vão para o client.
-      barber: { select: { name: true } },
-    },
-    orderBy: {
-      date: "desc",
-    },
   })
 }

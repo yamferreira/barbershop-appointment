@@ -20,6 +20,7 @@ import { format, isSameDay, set, startOfToday } from "date-fns"
 import { useSession } from "next-auth/react"
 import { createBooking } from "@/app/_actions/create-booking"
 import { fromDateOnly } from "@/app/_lib/date-only"
+import { isValidPhone, maskPhone, normalizePhone } from "@/app/_lib/phone"
 import { getBlockedDates } from "@/app/_actions/get-blocked-dates"
 import { getBookings } from "@/app/_actions/get-bookings"
 import {
@@ -38,6 +39,9 @@ type ServiceWithNumberPrice = Omit<BarbershopService, "price"> & {
 /** O que `getBookings` entrega: só o intervalo ocupado, sem dados do cliente. */
 type DayBooking = Pick<Booking, "barberId" | "date" | "durationMinutes">
 
+/** O que `getBlockedDates` entrega: só o dia e o barbeiro, sem o motivo. */
+type DayBlock = Pick<BlockedDate, "date" | "barberId">
+
 /** O que `getActiveBarbers` entrega: nunca o `calendarToken`. */
 type BarberOption = Pick<Barber, "id" | "name">
 
@@ -51,6 +55,11 @@ interface BookingFlowProps {
   services: ServiceWithNumberPrice[]
   barbershop: Pick<Barbershop, "name">
   barbers: BarberOption[]
+  /**
+   * Telefone (só dígitos) do último agendamento do usuário logado, para
+   * pré-preencher o campo. Continua editável.
+   */
+  defaultPhone?: string | null
 }
 
 const TIME_LIST = [
@@ -71,7 +80,12 @@ const formatPrice = (price: number) =>
     price,
   )
 
-const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
+const BookingFlow = ({
+  services,
+  barbershop,
+  barbers,
+  defaultPhone,
+}: BookingFlowProps) => {
   const { data } = useSession()
   const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(
     new Set(),
@@ -82,11 +96,20 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
     undefined,
   )
   const [dayBookings, setDayBookings] = useState<DayBooking[]>([])
-  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([])
+  const [blockedDates, setBlockedDates] = useState<DayBlock[]>([])
   const [guestName, setGuestName] = useState("")
-  const [guestPhone, setGuestPhone] = useState("")
+  // Guardado já com máscara, que é o que o campo mostra. A validação e o envio
+  // usam os dígitos.
+  const [phone, setPhone] = useState(() =>
+    defaultPhone ? maskPhone(defaultPhone) : "",
+  )
 
   const isGuest = !data?.user
+  const phoneDigits = normalizePhone(phone)
+  const isPhoneValid = isValidPhone(phoneDigits)
+  // Só acusa erro depois que o número parece completo, para não brigar com
+  // quem ainda está digitando.
+  const showPhoneError = phoneDigits.length >= 10 && !isPhoneValid
 
   const selectedServices = services.filter((service) =>
     selectedServiceIds.has(service.id),
@@ -223,6 +246,10 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
       toast.error("Informe seu nome para agendar.")
       return
     }
+    if (!isPhoneValid) {
+      toast.error("Informe um telefone válido com DDD.")
+      return
+    }
 
     try {
       const hour = Number(selectedSlot.time.split(":")[0])
@@ -235,10 +262,8 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
         serviceIds: selectedServices.map((service) => service.id),
         barberId: selectedSlot.barberId,
         date: newDate,
-        ...(isGuest && {
-          guestName: guestName.trim(),
-          guestPhone: guestPhone.trim() || undefined,
-        }),
+        phone: phoneDigits,
+        ...(isGuest && { guestName: guestName.trim() }),
       })
 
       if (!result.success) {
@@ -422,25 +447,46 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
               </Card>
             )}
 
-            {selectedSlot && selectedDay && isGuest && (
+            {selectedSlot && selectedDay && (
               <div className="space-y-3">
+                {isGuest && (
+                  <div className="space-y-1">
+                    <Label htmlFor="guest-name">Nome</Label>
+                    <Input
+                      id="guest-name"
+                      placeholder="Seu nome"
+                      autoComplete="name"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                    />
+                  </div>
+                )}
+                {/* Obrigatório para todos, com ou sem login. */}
                 <div className="space-y-1">
-                  <Label htmlFor="guest-name">Nome</Label>
+                  <Label htmlFor="booking-phone">Telefone (WhatsApp)</Label>
                   <Input
-                    id="guest-name"
-                    placeholder="Seu nome"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
+                    id="booking-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel-national"
+                    placeholder="(11) 91234-5678"
+                    required
+                    aria-invalid={showPhoneError || undefined}
+                    aria-describedby={
+                      showPhoneError ? "booking-phone-error" : undefined
+                    }
+                    value={phone}
+                    onChange={(e) => setPhone(maskPhone(e.target.value))}
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="guest-phone">Telefone (opcional)</Label>
-                  <Input
-                    id="guest-phone"
-                    placeholder="(11) 99999-9999"
-                    value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                  />
+                  {showPhoneError && (
+                    <p
+                      id="booking-phone-error"
+                      className="text-destructive text-xs"
+                    >
+                      Confira o DDD e o número. Celular tem 9 dígitos e começa
+                      com 9.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -449,7 +495,10 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
               className="w-full"
               onClick={handleConfirmClick}
               disabled={
-                !selectedSlot || !selectedDay || (isGuest && !guestName.trim())
+                !selectedSlot ||
+                !selectedDay ||
+                (isGuest && !guestName.trim()) ||
+                !isPhoneValid
               }
             >
               Confirmar

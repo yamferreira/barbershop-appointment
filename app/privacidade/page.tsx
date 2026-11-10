@@ -63,8 +63,13 @@ const PrivacyPage = () => {
                 (confirmado, concluído ou cancelado).
               </li>
               <li>
-                <strong>Agendamento sem login</strong>: o nome e, se você
-                informar, o telefone de quem está agendando.
+                <strong>Telefone (WhatsApp)</strong>: obrigatório em todo
+                agendamento, com ou sem login. Fica guardado junto com o
+                agendamento.
+              </li>
+              <li>
+                <strong>Agendamento sem login</strong>: o nome de quem está
+                agendando.
               </li>
               <li>
                 <strong>Sessões</strong>: um registro da sua sessão de login,
@@ -96,9 +101,15 @@ const PrivacyPage = () => {
                 para a equipe da barbearia.
               </li>
               <li>
-                <strong>Nome e telefone de quem agenda sem login</strong>:
-                identificar o agendamento e permitir que a barbearia entre em
-                contato sobre o horário, se precisar.
+                <strong>Telefone</strong>: o barbeiro vê o telefone de cada
+                agendamento e o usa para confirmar, remarcar ou avisar sobre o
+                horário, por ligação ou WhatsApp. Se você estiver logado, o
+                telefone do seu último agendamento já vem preenchido no próximo,
+                e você pode alterá-lo.
+              </li>
+              <li>
+                <strong>Nome de quem agenda sem login</strong>: identificar o
+                agendamento.
               </li>
               <li>
                 <strong>Sessões</strong>: manter você conectado com segurança.
@@ -132,8 +143,11 @@ const PrivacyPage = () => {
               </li>
             </ul>
             <p>
-              Dentro da barbearia, os dados dos agendamentos são vistos apenas
-              pela equipe responsável pelos atendimentos.
+              Dentro da barbearia, os dados dos agendamentos, incluindo o
+              telefone, são vistos apenas pela equipe responsável pelos
+              atendimentos. Se a barbearia falar com você pelo WhatsApp, a
+              conversa acontece no aplicativo do WhatsApp e segue as regras de
+              privacidade dele.
             </p>
           </Section>
 
@@ -145,7 +159,7 @@ const PrivacyPage = () => {
                 que você peça a exclusão.
               </li>
               <li>
-                <strong>Agendamentos sem login</strong>: o nome e o telefone
+                <strong>Telefone e nome informados no agendamento</strong>:
                 ficam guardados junto com o agendamento, até que seja pedida a
                 exclusão.
               </li>

@@ -14,6 +14,7 @@ import {
 import { Card, CardContent } from "./card"
 import { Badge } from "./badge"
 import AdminBookingActions from "./admin-booking-actions"
+import BookingPhone from "./booking-phone"
 import RescheduleBookingDialog from "./reschedule-booking-dialog"
 
 interface AdminBookingItemProps {
@@ -62,6 +63,7 @@ const AdminBookingItem = ({
           <p className="font-semibold">
             {booking.user?.name ?? booking.guestName ?? "Cliente sem nome"}
           </p>
+          <BookingPhone phone={booking.guestPhone} />
           <p className="text-muted-foreground text-sm">
             {formatServiceNames(booking.services)}
           </p>

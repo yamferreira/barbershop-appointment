@@ -8,6 +8,7 @@ import {
   blockDate,
   type ConflictingBooking,
 } from "@/app/admin/bloqueios/actions"
+import BookingPhone from "./booking-phone"
 import { Button } from "./button"
 import { Calendar } from "./calendar"
 import { Input } from "./input"
@@ -175,6 +176,9 @@ const BlockDateForm = ({ barbers }: BlockDateFormProps) => {
                   <p className="text-muted-foreground text-sm">
                     {booking.serviceNames} · {booking.barberName}
                   </p>
+                  {/* Quem bloqueia o dia avisa os clientes por fora: o
+                      telefone tem que estar à mão aqui. */}
+                  <BookingPhone phone={booking.phone} className="mt-1" />
                 </div>
                 <p className="text-sm font-semibold">{booking.time}</p>
               </div>

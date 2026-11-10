@@ -3,8 +3,9 @@ import { db } from "./_lib/prisma"
 import BookingItem from "./_components/ui/booking-item"
 import BookingFlow from "./_components/ui/booking-flow"
 import { auth } from "./_lib/auth-config"
-import { getConfirmedBookings } from "./_actions/get-bookings"
+import { getConfirmedBookings } from "./_lib/user-bookings"
 import { getActiveBarbers } from "./_actions/get-barbers"
+import { getLastBookingPhone } from "./_lib/last-booking-phone"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -14,9 +15,9 @@ const Home = async () => {
     include: { services: true },
   })
   const barbers = await getActiveBarbers()
-  const confirmedBookings = session?.user
-    ? await getConfirmedBookings(session.user.id as string)
-    : []
+  // Ambas leem o usuário da sessão; sem login, voltam vazias.
+  const confirmedBookings = await getConfirmedBookings()
+  const lastPhone = await getLastBookingPhone()
   const firstName = session?.user?.name?.split(" ")[0]
   const today = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })
   const capitalizedToday = today.charAt(0).toUpperCase() + today.slice(1)
@@ -68,6 +69,7 @@ const Home = async () => {
               services={services}
               barbershop={{ name: barbershop.name }}
               barbers={barbers}
+              defaultPhone={lastPhone}
             />
           ) : (
             <p className="text-muted-foreground text-sm">
