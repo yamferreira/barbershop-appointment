@@ -39,6 +39,9 @@ type ServiceWithNumberPrice = Omit<BarbershopService, "price"> & {
 /** O que `getBookings` entrega: só o intervalo ocupado, sem dados do cliente. */
 type DayBooking = Pick<Booking, "barberId" | "date" | "durationMinutes">
 
+/** O que `getBlockedDates` entrega: só o dia e o barbeiro, sem o motivo. */
+type DayBlock = Pick<BlockedDate, "date" | "barberId">
+
 /** O que `getActiveBarbers` entrega: nunca o `calendarToken`. */
 type BarberOption = Pick<Barber, "id" | "name">
 
@@ -93,7 +96,7 @@ const BookingFlow = ({
     undefined,
   )
   const [dayBookings, setDayBookings] = useState<DayBooking[]>([])
-  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([])
+  const [blockedDates, setBlockedDates] = useState<DayBlock[]>([])
   const [guestName, setGuestName] = useState("")
   // Guardado já com máscara, que é o que o campo mostra. A validação e o envio
   // usam os dígitos.

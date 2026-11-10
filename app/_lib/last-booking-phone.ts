@@ -1,16 +1,23 @@
-import { db } from "./prisma"
+import "server-only"
+
+import { auth } from "./auth-config"
 import { isValidPhone, normalizePhone } from "./phone"
+import { db } from "./prisma"
 
 /**
- * Telefone do agendamento mais recente do usuário que tenha número, para
- * pré-preencher o campo do próximo agendamento. Sem coluna nova no `User`: o
- * telefone mora no agendamento (`guestPhone`, nome histórico).
+ * Telefone do agendamento mais recente do usuário LOGADO que tenha número,
+ * para pré-preencher o campo do próximo agendamento. Sem coluna nova no
+ * `User`: o telefone mora no agendamento (`guestPhone`, nome histórico).
  *
- * De propósito NÃO é uma server action ("use server"): uma action exportada
- * fica chamável do client com qualquer `userId`, e isso entregaria o telefone
- * de outra pessoa. Só server components chamam isto, com o id da sessão.
+ * Server-only e fora de "use server" de propósito: uma server action exportada
+ * fica chamável por qualquer um. E o usuário vem da sessão, não de parâmetro,
+ * para não existir caminho que entregue o telefone de outra pessoa.
  */
-export const getLastBookingPhone = async (userId: string) => {
+export const getLastBookingPhone = async () => {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return null
+
   const booking = await db.booking.findFirst({
     where: { userId, guestPhone: { not: null } },
     orderBy: { createdAt: "desc" },
