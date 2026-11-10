@@ -23,11 +23,21 @@ const AdminAgendamentosPage = async ({
 
   // Admin enxerga todos os barbeiros (inclusive inativos, que ainda podem ter
   // agendamentos). Um id desconhecido na URL vira "Todos".
+  //
+  // Com um só barbeiro ativo o filtro some e a lista mostra tudo, inclusive o
+  // histórico de quem saiu. Um `?barbeiro=` que tenha ficado na URL é ignorado:
+  // sem o filtro na tela, não haveria como voltar para "Todos".
   const barbers = await db.barber.findMany({
-    select: { id: true, name: true },
+    select: { id: true, name: true, active: true },
     orderBy: [{ createdAt: "asc" }, { name: "asc" }],
   })
-  const selectedBarberId = barbers.find((barber) => barber.id === barbeiro)?.id
+  const activeBarbers = barbers.filter((barber) => barber.active)
+  const showBarberFilter = activeBarbers.length > 1
+  const soleActiveBarberId =
+    activeBarbers.length === 1 ? activeBarbers[0].id : undefined
+  const selectedBarberId = showBarberFilter
+    ? barbers.find((barber) => barber.id === barbeiro)?.id
+    : undefined
 
   const [bookings, monthCounts] = await Promise.all([
     db.booking.findMany({
@@ -60,12 +70,14 @@ const AdminAgendamentosPage = async ({
     <div className="space-y-6 p-5">
       <h1 className="text-xl font-bold">Agendamentos</h1>
 
-      <AdminBarberFilter
-        barbers={barbers}
-        selectedBarberId={selectedBarberId}
-        basePath="/admin/agendamentos"
-        params={{ data }}
-      />
+      {showBarberFilter && (
+        <AdminBarberFilter
+          barbers={barbers}
+          selectedBarberId={selectedBarberId}
+          basePath="/admin/agendamentos"
+          params={{ data }}
+        />
+      )}
 
       <AdminMonthCalendar
         selectedDate={selectedDate}
@@ -87,7 +99,11 @@ const AdminAgendamentosPage = async ({
         {bookings.length > 0 && (
           <div className="space-y-3">
             {bookings.map((booking) => (
-              <AdminBookingItem key={booking.id} booking={booking} />
+              <AdminBookingItem
+                key={booking.id}
+                booking={booking}
+                soleActiveBarberId={soleActiveBarberId}
+              />
             ))}
           </div>
         )}

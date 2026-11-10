@@ -36,6 +36,12 @@ const BlockDateForm = ({ barbers }: BlockDateFormProps) => {
   const [scope, setScope] = useState(WHOLE_SHOP)
   const [conflicts, setConflicts] = useState<ConflictingBooking[] | null>(null)
 
+  // `barbers` são só os ativos. Com um só, bloquear "a barbearia" e bloquear
+  // "o barbeiro" dá no mesmo para o cliente, então o seletor some e o bloqueio
+  // é sempre da barbearia inteira (o mesmo que feriados e sincronização usam).
+  const showScope = barbers.length > 1
+  const scopeBarberId = showScope && scope !== WHOLE_SHOP ? scope : null
+
   const resetForm = () => {
     setSelectedDay(undefined)
     setReason("")
@@ -49,7 +55,7 @@ const BlockDateForm = ({ barbers }: BlockDateFormProps) => {
         selectedDay,
         reason,
         confirmed,
-        scope === WHOLE_SHOP ? null : scope,
+        scopeBarberId,
       )
 
       if (!result.success) {
@@ -102,22 +108,24 @@ const BlockDateForm = ({ barbers }: BlockDateFormProps) => {
         />
       </div>
 
-      <div className="space-y-1">
-        <Label htmlFor="block-scope">Quem não atende</Label>
-        <select
-          id="block-scope"
-          value={scope}
-          onChange={(event) => setScope(event.target.value)}
-          className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-        >
-          <option value={WHOLE_SHOP}>Barbearia inteira</option>
-          {barbers.map((barber) => (
-            <option key={barber.id} value={barber.id}>
-              {barber.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {showScope && (
+        <div className="space-y-1">
+          <Label htmlFor="block-scope">Quem não atende</Label>
+          <select
+            id="block-scope"
+            value={scope}
+            onChange={(event) => setScope(event.target.value)}
+            className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+          >
+            <option value={WHOLE_SHOP}>Barbearia inteira</option>
+            {barbers.map((barber) => (
+              <option key={barber.id} value={barber.id}>
+                {barber.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label htmlFor="block-reason">Motivo (opcional)</Label>

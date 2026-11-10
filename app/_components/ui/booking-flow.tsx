@@ -181,6 +181,11 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
     })
   }, [selectedDay, dayBookings, blockedDates, barbers, totalDurationMinutes])
 
+  // Com um único barbeiro ativo não há escolha a fazer: os horários dele são os
+  // horários da barbearia, sem título por barbeiro, e o barbeiro vai junto do
+  // horário escolhido sem o cliente precisar saber quem é. Com mais de um, cada
+  // um ganha a sua seção.
+  const isSingleBarber = barbers.length === 1
   const hasAnySlot = barberSlots.some(({ times }) => times.length > 0)
   const selectedBarber = barbers.find(
     (barber) => barber.id === selectedSlot?.barberId,
@@ -206,7 +211,8 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
     setSelectedSlot(undefined)
   }
 
-  // Escolher um horário em qualquer seção define também o barbeiro.
+  // Escolher um horário em qualquer seção define também o barbeiro. Com um só
+  // barbeiro a seção é uma só, então ele é selecionado automaticamente.
   const handleTimeSelect = (barberId: string, time: string) => {
     setSelectedSlot({ barberId, time })
   }
@@ -326,9 +332,11 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
             {selectedDay &&
               barberSlots.map(({ barber, isBlocked, times }) => (
                 <div key={barber.id} className="space-y-3">
-                  <h4 className="text-sm font-semibold">
-                    Horário do {barber.name}
-                  </h4>
+                  {!isSingleBarber && (
+                    <h4 className="text-sm font-semibold">
+                      Horário do {barber.name}
+                    </h4>
+                  )}
 
                   {times.length > 0 ? (
                     <div className="flex gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
@@ -349,11 +357,16 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-sm">
-                      {isBlocked
-                        ? `${barber.name} não atende nesse dia.`
-                        : "Sem horários livres nessa data."}
-                    </p>
+                    // Com um barbeiro só, o aviso geral logo abaixo já diz
+                    // que não há horário; repetir aqui seria a mesma frase duas
+                    // vezes.
+                    !isSingleBarber && (
+                      <p className="text-muted-foreground text-sm">
+                        {isBlocked
+                          ? `${barber.name} não atende nesse dia.`
+                          : "Sem horários livres nessa data."}
+                      </p>
+                    )
                   )}
                 </div>
               ))}
@@ -392,10 +405,14 @@ const BookingFlow = ({ services, barbershop, barbers }: BookingFlowProps) => {
                     <p className="text-sm">{selectedSlot?.time}</p>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-muted-foreground text-sm">Barbeiro</h2>
-                    <p className="text-sm">{selectedBarber?.name}</p>
-                  </div>
+                  {!isSingleBarber && (
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-muted-foreground text-sm">
+                        Barbeiro
+                      </h2>
+                      <p className="text-sm">{selectedBarber?.name}</p>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between">
                     <h2 className="text-muted-foreground text-sm">Barbearia</h2>

@@ -22,6 +22,12 @@ interface AdminBookingItemProps {
     services: { service: BarbershopService }[]
     user: User | null
   }
+  /**
+   * Id do único barbeiro ativo, quando há exatamente um. Agendamento dele não
+   * precisa dizer quem atende; o de um barbeiro inativo continua dizendo, para
+   * o histórico de quem saiu ficar legível.
+   */
+  soleActiveBarberId?: string
 }
 
 const statusLabel: Record<BookingStatus, string> = {
@@ -40,7 +46,12 @@ const statusClassName: Record<BookingStatus, string> = {
   CANCELADO: "border-red-200 bg-red-50 text-red-700",
 }
 
-const AdminBookingItem = ({ booking }: AdminBookingItemProps) => {
+const AdminBookingItem = ({
+  booking,
+  soleActiveBarberId,
+}: AdminBookingItemProps) => {
+  const showBarber = booking.barberId !== soleActiveBarberId
+
   return (
     <Card>
       <CardContent className="flex items-center justify-between gap-3 p-5">
@@ -54,9 +65,11 @@ const AdminBookingItem = ({ booking }: AdminBookingItemProps) => {
           <p className="text-muted-foreground text-sm">
             {formatServiceNames(booking.services)}
           </p>
-          <p className="text-muted-foreground text-sm">
-            Barbeiro: {booking.barber.name}
-          </p>
+          {showBarber && (
+            <p className="text-muted-foreground text-sm">
+              Barbeiro: {booking.barber.name}
+            </p>
+          )}
           {booking.status === "CONFIRMADO" && (
             <div className="flex flex-wrap items-center gap-2">
               <AdminBookingActions bookingId={booking.id} />
