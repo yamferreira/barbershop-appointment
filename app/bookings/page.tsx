@@ -22,7 +22,7 @@ const BookingsPage = async () => {
   ])
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex flex-1 flex-col">
       <Header />
 
       <div className="theme-nobre bg-background text-foreground flex flex-1 flex-col space-y-6 p-5">

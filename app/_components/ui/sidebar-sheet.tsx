@@ -1,7 +1,7 @@
 "use client"
 
-import Image from "next/image"
 import { Button } from "./button"
+import GoogleIcon from "./google-icon"
 import { CalendarIcon, HomeIcon, LogInIcon, LogOutIcon } from "lucide-react"
 import { SheetContent, SheetHeader, SheetTitle, SheetClose } from "./sheet"
 import Link from "next/link"
@@ -64,12 +64,7 @@ const SideBarSheet = () => {
                   className="mt-2 justify-center gap-1 font-bold"
                   onClick={handleLoginWithGoogle}
                 >
-                  <Image
-                    src="/google.svg"
-                    width={18}
-                    height={18}
-                    alt="Google Icon"
-                  />
+                  <GoogleIcon className="size-[18px]" />
                   Google
                 </Button>
               </DialogContent>
