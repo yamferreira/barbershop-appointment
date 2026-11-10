@@ -29,7 +29,7 @@ const Home = async () => {
     : []
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex flex-1 flex-col">
       <Header />
       <div className="bg-[var(--brand-forest)] px-5 pt-6 pb-8">
         <h2 className="font-display text-3xl font-bold text-[var(--brand-cream)]">

@@ -28,7 +28,7 @@ const Section = ({
 
 const PrivacyPage = () => {
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex flex-1 flex-col">
       <Header />
 
       <main className="theme-nobre bg-background text-foreground flex-1 p-5">

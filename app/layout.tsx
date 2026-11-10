@@ -42,8 +42,12 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${inter.variable} ${fraunces.variable} antialiased`}>
         <AuthProvider>
-          <div className="flex h-full flex-col">
-            <div className="flex-1">{children}</div>
+          {/* Pelo menos a altura da tela (dvh acompanha a barra do navegador
+              no celular), com o rodapé sempre no fim. O miolo é flex para
+              que a página, com `flex-1`, estique até o rodapé em vez de deixar
+              um vão quando o conteúdo é curto. */}
+          <div className="flex min-h-dvh flex-col">
+            <div className="flex flex-1 flex-col">{children}</div>
             <Footer />
           </div>
         </AuthProvider>

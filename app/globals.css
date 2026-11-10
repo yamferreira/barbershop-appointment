@@ -142,11 +142,37 @@
   * {
     @apply border-border antialiased;
   }
+  /*
+   * Fundo do documento = fundo do site (--brand-page), fixo em qualquer tema:
+   * as cores da marca não seguem claro/escuro. Antes o body pintava
+   * --background, que sob o `.dark` do <html> é quase preto, e era isso que
+   * aparecia como faixa preta ao arrastar além do topo ou do fim da página.
+   * `overscroll-behavior-y: none` corta o "elástico" onde o navegador
+   * respeita a propriedade; onde não respeita, o que aparece é o mesmo creme.
+   */
   html {
-    @apply h-full;
+    background-color: var(--brand-page);
+    overscroll-behavior-y: none;
   }
   body {
-    @apply bg-background text-foreground h-full;
+    @apply text-foreground;
+    background-color: var(--brand-page);
+    overscroll-behavior-y: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /*
+   * Barra de rolagem escondida no site inteiro (documento e áreas internas,
+   * como a grade de serviços e o menu lateral). Só a barra some: toque, roda
+   * do mouse e teclado continuam rolando.
+   */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
   }
 }
 

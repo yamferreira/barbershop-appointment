@@ -45,7 +45,7 @@ const BarbershopPage = async ({ params }: BarbershopPageProps) => {
   }))
 
   return (
-    <div className="theme-nobre bg-background text-foreground min-h-full">
+    <div className="theme-nobre bg-background text-foreground flex-1">
       {/* IMAGEM */}
       <div className="relative h-[250px] w-full">
         <Image

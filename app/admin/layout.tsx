@@ -5,7 +5,7 @@ const AdminLayout = async ({ children }: { children: ReactNode }) => {
   await requireBarbeiro()
 
   return (
-    <div className="theme-nobre bg-background text-foreground min-h-full">
+    <div className="theme-nobre bg-background text-foreground flex-1">
       {children}
     </div>
   )
