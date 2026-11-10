@@ -3,6 +3,7 @@
 import { endOfDay, startOfDay } from "date-fns"
 import { Prisma } from "../generated/prisma"
 import { findBlockForBarber } from "../_lib/blocked-dates"
+import { isValidPhone, normalizePhone } from "../_lib/phone"
 import { db } from "../_lib/prisma"
 import {
   CLOSING_HOUR,
@@ -17,14 +18,14 @@ interface CreateBookingParams {
   barberId: string
   date: Date
   guestName?: string
-  guestPhone?: string
+  /** Obrigatório para todos, com ou sem login. Aceita com ou sem máscara. */
+  phone: string
 }
 
 export const createBooking = async (params: CreateBookingParams) => {
   const session = await auth()
 
   let guestName: string | undefined
-  let guestPhone: string | undefined
 
   if (!session?.user) {
     guestName = params.guestName?.trim()
@@ -34,7 +35,18 @@ export const createBooking = async (params: CreateBookingParams) => {
         message: "Informe seu nome para agendar sem login.",
       }
     }
-    guestPhone = params.guestPhone?.trim() || undefined
+  }
+
+  // Telefone obrigatório em todo agendamento, de convidado ou de usuário
+  // logado: é por ele que a barbearia confirma ou remarca o horário. O client
+  // já valida com a mesma regra, mas é aqui que ela vale. Grava só dígitos.
+  const phone =
+    typeof params.phone === "string" ? normalizePhone(params.phone) : ""
+  if (!isValidPhone(phone)) {
+    return {
+      success: false as const,
+      message: "Informe um telefone válido com DDD.",
+    }
   }
 
   if (params.date.getDay() === 0) {
@@ -152,7 +164,10 @@ export const createBooking = async (params: CreateBookingParams) => {
         durationMinutes: totalDurationMinutes,
         userId: session?.user?.id as string | undefined,
         guestName,
-        guestPhone,
+        // `guestPhone` é nome histórico: a coluna nasceu para o agendamento
+        // sem login, mas hoje guarda o telefone de TODO agendamento, inclusive
+        // de usuário logado. Não foi renomeada para não exigir migração.
+        guestPhone: phone,
         services: {
           create: serviceIds.map((serviceId) => ({ serviceId })),
         },

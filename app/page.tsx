@@ -5,6 +5,7 @@ import BookingFlow from "./_components/ui/booking-flow"
 import { auth } from "./_lib/auth-config"
 import { getConfirmedBookings } from "./_actions/get-bookings"
 import { getActiveBarbers } from "./_actions/get-barbers"
+import { getLastBookingPhone } from "./_lib/last-booking-phone"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -17,6 +18,9 @@ const Home = async () => {
   const confirmedBookings = session?.user
     ? await getConfirmedBookings(session.user.id as string)
     : []
+  const lastPhone = session?.user
+    ? await getLastBookingPhone(session.user.id as string)
+    : null
   const firstName = session?.user?.name?.split(" ")[0]
   const today = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })
   const capitalizedToday = today.charAt(0).toUpperCase() + today.slice(1)
@@ -68,6 +72,7 @@ const Home = async () => {
               services={services}
               barbershop={{ name: barbershop.name }}
               barbers={barbers}
+              defaultPhone={lastPhone}
             />
           ) : (
             <p className="text-muted-foreground text-sm">

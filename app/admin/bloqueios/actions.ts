@@ -18,6 +18,8 @@ export interface ConflictingBooking {
   barberName: string
   /** Todos os serviços do agendamento, já concatenados para exibição. */
   serviceNames: string
+  /** `Booking.guestPhone` (nome histórico: vale para todo agendamento). */
+  phone: string | null
   time: string
 }
 
@@ -29,8 +31,13 @@ type BlockDateResult =
 /**
  * Agendamentos ativos no dia. `barberId` restringe a um barbeiro (bloqueio
  * individual); sem ele, lista os de todos (bloqueio da barbearia inteira).
+ *
+ * Não exportado de propósito: toda função exportada de um arquivo
+ * "use server" vira server action chamável por qualquer um, e esta não checa
+ * permissão — devolveria nome e telefone dos clientes do dia. Só `blockDate`,
+ * que já exige barbeiro, chama isto.
  */
-export const getBookingsOnDate = async (
+const getBookingsOnDate = async (
   date: Date,
   barberId?: string,
 ): Promise<ConflictingBooking[]> => {
@@ -60,6 +67,7 @@ export const getBookingsOnDate = async (
     clientName: booking.user?.name ?? booking.guestName ?? "Cliente sem nome",
     barberName: booking.barber.name,
     serviceNames: formatServiceNames(booking.services),
+    phone: booking.guestPhone,
     time: format(booking.date, "HH:mm"),
   }))
 }
