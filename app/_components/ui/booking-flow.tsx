@@ -103,6 +103,10 @@ const BookingFlow = ({
   const [phone, setPhone] = useState(() =>
     defaultPhone ? maskPhone(defaultPhone) : "",
   )
+  // Recusa do servidor que não tem a ver com o horário (limite de
+  // agendamentos do telefone). Fica visível acima do Confirmar, além do toast,
+  // e some quando o cliente troca o telefone.
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const isGuest = !data?.user
   const phoneDigits = normalizePhone(phone)
@@ -251,6 +255,7 @@ const BookingFlow = ({
       return
     }
 
+    setSubmitError(null)
     try {
       const hour = Number(selectedSlot.time.split(":")[0])
       const minutes = Number(selectedSlot.time.split(":")[1])
@@ -268,6 +273,13 @@ const BookingFlow = ({
 
       if (!result.success) {
         toast.error(result.message)
+        // O horário continua válido: não adianta desmarcá-lo e travar o
+        // Confirmar. O cliente cancela um agendamento ou troca o telefone e
+        // tenta de novo com a mesma seleção.
+        if ("code" in result && result.code === "BOOKING_LIMIT") {
+          setSubmitError(result.message)
+          return
+        }
         setSelectedSlot(undefined)
         getBookings({ date: selectedDay }).then(setDayBookings)
         return
@@ -476,7 +488,10 @@ const BookingFlow = ({
                       showPhoneError ? "booking-phone-error" : undefined
                     }
                     value={phone}
-                    onChange={(e) => setPhone(maskPhone(e.target.value))}
+                    onChange={(e) => {
+                      setPhone(maskPhone(e.target.value))
+                      setSubmitError(null)
+                    }}
                   />
                   {showPhoneError && (
                     <p
@@ -489,6 +504,12 @@ const BookingFlow = ({
                   )}
                 </div>
               </div>
+            )}
+
+            {submitError && selectedSlot && (
+              <p role="alert" className="text-destructive text-sm">
+                {submitError}
+              </p>
             )}
 
             <Button
