@@ -23,6 +23,18 @@ import {
 import { signIn, signOut } from "next-auth/react"
 import { Avatar, AvatarImage } from "./avatar"
 import { useSession } from "next-auth/react"
+import { cn } from "@/app/_lib/utils"
+
+/*
+ * Menu e diálogo de login abrem num portal no <body>, fora de qualquer
+ * `.theme-nobre` das páginas, então levam a classe no próprio conteúdo. Como o
+ * <html> tem `.dark`, as variantes `dark:` dos botões continuam valendo aqui
+ * dentro; por isso os hovers e o botão do Google repetem a cor em `dark:`.
+ */
+const themeClassName = "theme-nobre bg-background text-foreground"
+
+const navItemClassName =
+  "justify-start gap-2 hover:bg-brand/15 hover:text-foreground dark:hover:bg-brand/15 [&_svg]:text-[var(--brand-gold-text)]"
 
 const SideBarSheet = () => {
   const { data } = useSession()
@@ -30,9 +42,9 @@ const SideBarSheet = () => {
   const handleLogOutClick = () => signOut()
 
   return (
-    <SheetContent className="overflow-y-auto">
+    <SheetContent className={cn(themeClassName, "overflow-y-auto")}>
       <SheetHeader>
-        <SheetTitle className="text-left">Menu</SheetTitle>
+        <SheetTitle className="font-display text-left text-lg">Menu</SheetTitle>
       </SheetHeader>
 
       <div className="flex items-center justify-between gap-3 border-b border-solid py-5 pl-3">
@@ -47,7 +59,9 @@ const SideBarSheet = () => {
 
             <div>
               <p className="font-bold">{data?.user?.name}</p>
-              <p className="text-xs">{data?.user?.email}</p>
+              <p className="text-muted-foreground text-xs">
+                {data?.user?.email}
+              </p>
             </div>
           </div>
         ) : (
@@ -55,20 +69,23 @@ const SideBarSheet = () => {
             <h2 className="font-bold">Olá, faça seu Login!</h2>
             <Dialog>
               <DialogTrigger asChild>
-                <Button size="icon" variant="secondary">
+                <Button size="icon" aria-label="Fazer login">
                   <LogInIcon />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="w-[90%]">
+              <DialogContent className={cn(themeClassName, "w-[90%]")}>
                 <DialogHeader>
-                  <DialogTitle>Faça seu login na plataforma</DialogTitle>
+                  <DialogTitle className="font-display">
+                    Faça seu login na plataforma
+                  </DialogTitle>
                   <DialogDescription>
                     Conecte usando sua conta do Google.
                   </DialogDescription>
                 </DialogHeader>
+                {/* Fundo claro e neutro: o "G" fica nas cores originais. */}
                 <Button
                   variant="outline"
-                  className="mt-2 justify-center gap-1 font-bold"
+                  className="bg-card hover:bg-brand/10 dark:bg-card dark:border-border dark:hover:bg-brand/10 mt-2 justify-center gap-1 font-bold"
                   onClick={handleLoginWithGoogle}
                 >
                   <GoogleIcon className="size-[18px]" />
@@ -82,7 +99,7 @@ const SideBarSheet = () => {
 
       <div className="flex flex-col gap-2 border-b border-solid p-5 py-5">
         <SheetClose asChild>
-          <Button className="justify-start gap-2" variant="ghost" asChild>
+          <Button className={navItemClassName} variant="ghost" asChild>
             <Link href="/">
               <HomeIcon size={18} />
               Início
@@ -91,7 +108,7 @@ const SideBarSheet = () => {
         </SheetClose>
 
         <SheetClose asChild>
-          <Button className="justify-start gap-2" variant="ghost" asChild>
+          <Button className={navItemClassName} variant="ghost" asChild>
             <Link href="/bookings">
               <CalendarIcon size={18} />
               Agendamentos
@@ -105,7 +122,7 @@ const SideBarSheet = () => {
       {data?.user?.role === "BARBEIRO" && (
         <div className="flex flex-col gap-2 border-b border-solid p-5 py-5">
           <SheetClose asChild>
-            <Button className="justify-start gap-2" variant="ghost" asChild>
+            <Button className={navItemClassName} variant="ghost" asChild>
               <Link href="/admin">
                 <LayoutDashboardIcon size={18} />
                 Painel do barbeiro
@@ -114,7 +131,7 @@ const SideBarSheet = () => {
           </SheetClose>
 
           <SheetClose asChild>
-            <Button className="justify-start gap-2" variant="ghost" asChild>
+            <Button className={navItemClassName} variant="ghost" asChild>
               <Link href="/admin/calendario">
                 <CalendarRangeIcon size={18} />
                 Calendário
@@ -127,7 +144,7 @@ const SideBarSheet = () => {
       <div className="flex flex-col gap-2 p-5 py-5">
         <Button
           variant="ghost"
-          className="justify-start gap-2"
+          className={navItemClassName}
           onClick={handleLogOutClick}
         >
           <LogOutIcon size={18} />
