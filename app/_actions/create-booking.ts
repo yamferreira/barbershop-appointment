@@ -3,7 +3,7 @@
 import { endOfDay, startOfDay } from "date-fns"
 import { Prisma } from "../generated/prisma"
 import { findBlockForBarber } from "../_lib/blocked-dates"
-import { isValidPhone, normalizePhone } from "../_lib/phone"
+import { formatPhone, isValidPhone, normalizePhone } from "../_lib/phone"
 import { db } from "../_lib/prisma"
 import {
   CLOSING_HOUR,
@@ -15,8 +15,27 @@ import {
 import { auth } from "../_lib/auth-config"
 import { sanitizeGuestName } from "../_lib/guest-name"
 
-// Arquivo "use server" só pode exportar funções async, por isso fica local.
-const BOOKING_LIMIT_MESSAGE = `Este telefone já tem ${MAX_ACTIVE_BOOKINGS_PER_PHONE} agendamentos futuros. Cancele um ou fale com a barbearia.`
+/**
+ * Mensagem de limite conforme quem pede. Convidado não tem tela de
+ * agendamentos para cancelar, então o caminho é a barbearia; logado pode
+ * cancelar um pelo menu. O telefone da barbearia entra quando existe.
+ *
+ * Fica local porque arquivo "use server" só pode exportar funções async.
+ */
+const getBookingLimitMessage = async (isLoggedIn: boolean) => {
+  const barbershop = await db.barbershop.findFirst({ select: { phone: true } })
+  const barbershopPhone = barbershop?.phone.find((p) => p.trim())
+  const contact = barbershopPhone
+    ? ` Telefone: ${formatPhone(barbershopPhone)}.`
+    : ""
+
+  if (isLoggedIn) {
+    // O link do menu se chama "Agendamentos" (sidebar-sheet), é por esse
+    // nome que o cliente vai procurar.
+    return `Você já tem ${MAX_ACTIVE_BOOKINGS_PER_PHONE} agendamentos futuros. Para marcar outro, cancele um em Agendamentos, no menu, ou fale com a barbearia.${contact}`
+  }
+  return `Este telefone já tem ${MAX_ACTIVE_BOOKINGS_PER_PHONE} agendamentos futuros. Para marcar outro, fale com a barbearia.${contact}`
+}
 
 /** Erro de negócio que aborta a transação sem virar exceção para o client. */
 class BookingLimitReached extends Error {}
@@ -56,6 +75,21 @@ export const createBooking = async (params: CreateBookingParams) => {
     return {
       success: false as const,
       message: "Informe um telefone válido com DDD.",
+    }
+  }
+
+  // O client só desabilita dias anteriores a hoje, e a data vem dele: sem esta
+  // checagem dava para reservar ontem, ou hoje num horário que já passou.
+  if (!(params.date instanceof Date) || Number.isNaN(params.date.getTime())) {
+    return {
+      success: false as const,
+      message: "Data inválida. Escolha o dia e o horário de novo.",
+    }
+  }
+  if (params.date <= new Date()) {
+    return {
+      success: false as const,
+      message: "Esse horário já passou. Escolha uma data e hora futuras.",
     }
   }
 
@@ -226,7 +260,7 @@ export const createBooking = async (params: CreateBookingParams) => {
       return {
         success: false as const,
         code: "BOOKING_LIMIT" as const,
-        message: BOOKING_LIMIT_MESSAGE,
+        message: await getBookingLimitMessage(Boolean(userId)),
       }
     }
     if (
