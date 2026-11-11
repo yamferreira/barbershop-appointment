@@ -85,7 +85,8 @@ const AdminAgendamentosPage = async ({
         barberId={selectedBarberId}
       />
 
-      <div id="agendamentos-do-dia" className="scroll-mt-4 space-y-3">
+      {/* scroll-mt: a rolagem até aqui para abaixo da navegação fixa do admin. */}
+      <div id="agendamentos-do-dia" className="scroll-mt-28 space-y-3">
         <h2 className="text-muted-foreground text-xs font-bold uppercase">
           {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
         </h2>
