@@ -12,6 +12,7 @@ import {
   intervalsOverlap,
 } from "../_lib/schedule"
 import { auth } from "../_lib/auth-config"
+import { sanitizeGuestName } from "../_lib/guest-name"
 
 interface CreateBookingParams {
   serviceIds: string[]
@@ -28,7 +29,9 @@ export const createBooking = async (params: CreateBookingParams) => {
   let guestName: string | undefined
 
   if (!session?.user) {
-    guestName = params.guestName?.trim()
+    // Aparado, sem controle/quebra de linha e com no máximo 80 caracteres:
+    // o nome vai para o admin e para o feed .ics dos barbeiros.
+    guestName = sanitizeGuestName(params.guestName)
     if (!guestName) {
       return {
         success: false as const,
