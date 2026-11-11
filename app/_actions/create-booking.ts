@@ -10,9 +10,16 @@ import {
   getBookingEnd,
   getClosingTime,
   intervalsOverlap,
+  MAX_ACTIVE_BOOKINGS_PER_PHONE,
 } from "../_lib/schedule"
 import { auth } from "../_lib/auth-config"
 import { sanitizeGuestName } from "../_lib/guest-name"
+
+// Arquivo "use server" só pode exportar funções async, por isso fica local.
+const BOOKING_LIMIT_MESSAGE = `Este telefone já tem ${MAX_ACTIVE_BOOKINGS_PER_PHONE} agendamentos futuros. Cancele um ou fale com a barbearia.`
+
+/** Erro de negócio que aborta a transação sem virar exceção para o client. */
+class BookingLimitReached extends Error {}
 
 interface CreateBookingParams {
   serviceIds: string[]
@@ -159,30 +166,69 @@ export const createBooking = async (params: CreateBookingParams) => {
     }
   }
 
+  const userId = session?.user?.id as string | undefined
+
   try {
-    await db.booking.create({
-      data: {
-        date: params.date,
-        barberId: barber.id,
-        durationMinutes: totalDurationMinutes,
-        userId: session?.user?.id as string | undefined,
-        guestName,
-        // `guestPhone` é nome histórico: a coluna nasceu para o agendamento
-        // sem login, mas hoje guarda o telefone de TODO agendamento, inclusive
-        // de usuário logado. Não foi renomeada para não exigir migração.
-        guestPhone: phone,
-        services: {
-          create: serviceIds.map((serviceId) => ({ serviceId })),
+    // Contagem e criação na mesma transação, serializadas por advisory lock.
+    // Só a transação não bastaria: no READ COMMITTED padrão do Postgres, dois
+    // pedidos simultâneos do mesmo telefone contariam 2 cada um e criariam o
+    // 3º e o 4º. O `pg_advisory_xact_lock` faz o segundo esperar o primeiro
+    // commitar antes de contar. É por transação (solta no COMMIT/ROLLBACK),
+    // então funciona atrás do PgBouncer em transaction mode.
+    //
+    // Chave de dois inteiros para separar os espaços: 1 = telefone,
+    // 2 = conta. A ordem é sempre telefone e depois conta, então duas
+    // transações nunca esperam uma pela outra em ciclo.
+    await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(1, hashtext(${phone}))`
+      if (userId) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(2, hashtext(${userId}))`
+      }
+
+      // Logado conta pelo telefone OU pela conta: trocar de número não
+      // libera mais vagas, e o mesmo número em outra conta também conta.
+      const activeCount = await tx.booking.count({
+        where: {
+          date: { gt: new Date() },
+          status: { not: "CANCELADO" },
+          OR: [{ guestPhone: phone }, ...(userId ? [{ userId }] : [])],
         },
-        // Coluna antiga, ainda NOT NULL até a migração que a remove. Nenhuma
-        // tela lê mais `booking.service` — todas passaram para
-        // `booking.services` —, então isso aqui é só para satisfazer a coluna
-        // enquanto ela existe, e sai junto com ela.
-        serviceId: serviceIds[0],
-      },
+      })
+      if (activeCount >= MAX_ACTIVE_BOOKINGS_PER_PHONE) {
+        throw new BookingLimitReached()
+      }
+
+      await tx.booking.create({
+        data: {
+          date: params.date,
+          barberId: barber.id,
+          durationMinutes: totalDurationMinutes,
+          userId,
+          guestName,
+          // `guestPhone` é nome histórico: a coluna nasceu para o agendamento
+          // sem login, mas hoje guarda o telefone de TODO agendamento, inclusive
+          // de usuário logado. Não foi renomeada para não exigir migração.
+          guestPhone: phone,
+          services: {
+            create: serviceIds.map((serviceId) => ({ serviceId })),
+          },
+          // Coluna antiga, ainda NOT NULL até a migração que a remove. Nenhuma
+          // tela lê mais `booking.service` — todas passaram para
+          // `booking.services` —, então isso aqui é só para satisfazer a coluna
+          // enquanto ela existe, e sai junto com ela.
+          serviceId: serviceIds[0],
+        },
+      })
     })
     return { success: true as const }
   } catch (error) {
+    if (error instanceof BookingLimitReached) {
+      return {
+        success: false as const,
+        code: "BOOKING_LIMIT" as const,
+        message: BOOKING_LIMIT_MESSAGE,
+      }
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

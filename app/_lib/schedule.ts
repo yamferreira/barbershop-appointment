@@ -40,3 +40,11 @@ export const formatDuration = (minutes: number) => {
   if (mins === 0) return `${hours}h`
   return `${hours}h${mins}min`
 }
+
+/**
+ * Quantos agendamentos futuros e não cancelados um mesmo telefone (ou, logado,
+ * a mesma conta) pode ter ao mesmo tempo. Segura quem reserva a agenda inteira
+ * de uma vez, de propósito ou por engano, sem atrapalhar quem marca o corte do
+ * mês que vem e o do outro.
+ */
+export const MAX_ACTIVE_BOOKINGS_PER_PHONE = 3
