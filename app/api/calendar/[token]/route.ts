@@ -2,6 +2,7 @@ import { addDays, addMinutes, subDays } from "date-fns"
 import { CALENDAR_TOKEN_PATTERN } from "@/app/_lib/calendar-token"
 import { formatServiceNames } from "@/app/_lib/booking-display"
 import { buildCalendar, type IcsEvent } from "@/app/_lib/ics"
+import { formatPhone } from "@/app/_lib/phone"
 import { db } from "@/app/_lib/prisma"
 
 /**
@@ -35,16 +36,6 @@ const notFound = () =>
       "Cache-Control": "no-store",
     },
   })
-
-/**
- * Telefone guardado → "(11) 91234-5678" (ou "(11) 1234-5678"). Fora do padrão,
- * sai como veio.
- */
-const formatPhone = (stored: string) => {
-  const digits = stored.replace(/\D/g, "")
-  const m = digits.match(/^(\d{2})(\d{4,5})(\d{4})$/)
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : stored
-}
 
 export const GET = async (
   _request: Request,
