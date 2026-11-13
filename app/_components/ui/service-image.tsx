@@ -1,4 +1,7 @@
+"use client"
+
 import Image from "next/image"
+import { cloudinaryLoader, isCloudinaryUrl } from "@/app/_lib/cloudinary-url"
 import { cn } from "@/app/_lib/utils"
 
 interface ServiceImageProps {
@@ -15,6 +18,11 @@ interface ServiceImageProps {
  * para todo serviço, nas cores da marca, em vez de um buraco na grade.
  *
  * O ícone é SVG inline, sem depender de arquivo nem de biblioteca.
+ *
+ * Foto da Cloudinary vai pelo loader dela (formato, qualidade e largura na
+ * URL), sem passar pelo otimizador do Next. As antigas (utfs.io) continuam
+ * no otimizador padrão. É componente client porque o loader é uma função, e
+ * função não atravessa de server component para o next/image.
  */
 const ServiceImage = ({ src, alt, sizes, className }: ServiceImageProps) => {
   if (src) {
@@ -24,6 +32,7 @@ const ServiceImage = ({ src, alt, sizes, className }: ServiceImageProps) => {
         alt={alt}
         fill
         sizes={sizes}
+        loader={isCloudinaryUrl(src) ? cloudinaryLoader : undefined}
         className={cn("object-cover", className)}
       />
     )

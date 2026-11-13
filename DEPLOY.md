@@ -17,14 +17,17 @@ deploy — não precisa aplicar uma por uma.
 O modelo está em `.env.example`. Em produção (Vercel: _Settings → Environment
 Variables_) todas são obrigatórias.
 
-| Variável               | Para quê                                                                                                                                                                                      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`         | Conexão do app com o Postgres, pelo endpoint **com pooler** (host com `-pooler`). É a que o app usa em runtime.                                                                               |
-| `DIRECT_URL`           | Conexão **direta**: o mesmo host **sem** `-pooler`. Só serve para migrações (`prisma migrate`), que usam advisory lock de sessão e não funcionam por pooler. O app não a usa em runtime.      |
-| `AUTH_SECRET`          | Segredo do Auth.js, que assina e criptografa os cookies de sessão. Gere com `openssl rand -base64 32`. Use um valor diferente em cada ambiente; trocar o valor derruba as sessões existentes. |
-| `GOOGLE_CLIENT_ID`     | ID do cliente OAuth do Google (login dos clientes e do barbeiro).                                                                                                                             |
-| `GOOGLE_CLIENT_SECRET` | Segredo do cliente OAuth do Google.                                                                                                                                                           |
-| `CRON_SECRET`          | Segredo longo e aleatório que protege `/api/cron/sync-holidays` (ver a seção de cron abaixo). Sem ele a rota responde 500.                                                                    |
+| Variável                | Para quê                                                                                                                                                                                              |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`          | Conexão do app com o Postgres, pelo endpoint **com pooler** (host com `-pooler`). É a que o app usa em runtime.                                                                                       |
+| `DIRECT_URL`            | Conexão **direta**: o mesmo host **sem** `-pooler`. Só serve para migrações (`prisma migrate`), que usam advisory lock de sessão e não funcionam por pooler. O app não a usa em runtime.              |
+| `AUTH_SECRET`           | Segredo do Auth.js, que assina e criptografa os cookies de sessão. Gere com `openssl rand -base64 32`. Use um valor diferente em cada ambiente; trocar o valor derruba as sessões existentes.         |
+| `GOOGLE_CLIENT_ID`      | ID do cliente OAuth do Google (login dos clientes e do barbeiro).                                                                                                                                     |
+| `GOOGLE_CLIENT_SECRET`  | Segredo do cliente OAuth do Google.                                                                                                                                                                   |
+| `CRON_SECRET`           | Segredo longo e aleatório que protege `/api/cron/sync-holidays` (ver a seção de cron abaixo). Sem ele a rota responde 500.                                                                            |
+| `CLOUDINARY_CLOUD_NAME` | Nome da conta Cloudinary onde ficam as fotos dos serviços (_Settings → API Keys_).                                                                                                                    |
+| `CLOUDINARY_API_KEY`    | Chave da API da Cloudinary.                                                                                                                                                                           |
+| `CLOUDINARY_API_SECRET` | Segredo da API da Cloudinary. Só o servidor usa; nunca vai para o navegador. Sem as três variáveis o cadastro de serviços continua funcionando, mas o envio de foto fica indisponível (a tela avisa). |
 
 ### Login com Google: URI de redirecionamento
 
