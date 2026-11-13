@@ -139,17 +139,21 @@ export const createBooking = async (params: CreateBookingParams) => {
     }
   }
 
+  // Só serviços ativos: a tela do cliente já esconde os inativos, mas ela pode
+  // ter sido carregada antes de o barbeiro desativar um, e o id vem do client.
   const services = await db.barbershopService.findMany({
-    where: { id: { in: serviceIds } },
+    where: { id: { in: serviceIds }, active: true },
     select: { id: true, durationMinutes: true },
   })
 
-  // `findMany` devolve só o que existe: se veio menos do que foi pedido, algum
-  // id é inválido e o agendamento não pode ser criado pela metade.
+  // `findMany` devolve só o que existe e está ativo: se veio menos do que foi
+  // pedido, algum id é inválido ou foi desativado, e o agendamento não pode
+  // ser criado pela metade.
   if (services.length !== serviceIds.length) {
     return {
       success: false as const,
-      message: "Serviço não encontrado.",
+      message:
+        "Algum serviço escolhido não está mais disponível. Atualize a página e escolha de novo.",
     }
   }
 

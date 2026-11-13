@@ -102,14 +102,27 @@ model Barbershop {
   services    BarbershopService[]
 }
 
+/// Serviço do catálogo, gerenciado pelo barbeiro em /admin/servicos.
+///
+/// `active` falso tira o serviço da tela do cliente e do `createBooking`, mas
+/// mantém a linha: agendamentos antigos continuam apontando para ela. Apagar
+/// de vez só é possível quando nenhum agendamento usa o serviço.
+///
+/// `position` é a ordem de exibição (1, 2, 3...), definida pelo barbeiro. Não
+/// tem índice único de propósito: reordenar troca dois valores de lugar, e um
+/// UNIQUE exigiria constraint adiável ou um valor temporário no meio.
+///
+/// `imageUrl` é opcional: sem foto, a tela mostra o ícone padrão.
 model BarbershopService {
   id              String           @id @default(uuid())
   barbershopId    String
   name            String
   description     String
-  imageUrl        String
+  imageUrl        String?
   price           Decimal          @db.Decimal(10, 2)
   durationMinutes Int
+  position        Int
+  active          Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   barbershop      Barbershop       @relation(fields: [barbershopId], references: [id])

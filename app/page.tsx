@@ -12,7 +12,10 @@ import { ptBR } from "date-fns/locale"
 const Home = async () => {
   const session = await auth()
   const barbershop = await db.barbershop.findFirst({
-    include: { services: true },
+    // O cliente só vê o que o barbeiro deixou ativo, na ordem que ele definiu.
+    include: {
+      services: { where: { active: true }, orderBy: { position: "asc" } },
+    },
   })
   const barbers = await getActiveBarbers()
   // Ambas leem o usuário da sessão; sem login, voltam vazias.
