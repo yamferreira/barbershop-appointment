@@ -9,6 +9,7 @@ import PhoneItem from "@/app/_components/ui/phone-item"
 import { Sheet, SheetTrigger } from "@/app/_components/ui/sheet"
 import SidebarSheet from "@/app/_components/ui/sidebar-sheet"
 import { formatDuration } from "@/app/_lib/schedule"
+import ServiceImage from "@/app/_components/ui/service-image"
 
 const formatPrice = (price: number) =>
   Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
@@ -115,11 +116,11 @@ const BarbershopPage = async ({ params }: BarbershopPageProps) => {
             <Card key={service.id}>
               <CardContent className="flex items-center gap-3 p-3">
                 <div className="relative max-h-[110px] min-h-[110px] max-w-[110px] min-w-[110px]">
-                  <Image
+                  <ServiceImage
                     src={service.imageUrl}
                     alt={service.name}
-                    fill
-                    className="rounded-lg object-cover"
+                    sizes="110px"
+                    className="rounded-lg"
                   />
                 </div>
 

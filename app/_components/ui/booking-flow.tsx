@@ -7,8 +7,8 @@ import type {
   BlockedDate,
   Booking,
 } from "../../generated/prisma"
-import Image from "next/image"
 import { CheckIcon } from "lucide-react"
+import ServiceImage from "./service-image"
 import { Button } from "./button"
 import { Card, CardContent } from "./card"
 import BookingCalendar from "./booking-calendar"
@@ -318,11 +318,11 @@ const BookingFlow = ({
                 </span>
               )}
               <div className="relative h-14 w-14">
-                <Image
+                <ServiceImage
                   src={service.imageUrl}
                   alt={service.name}
-                  fill
-                  className="rounded-lg object-cover"
+                  sizes="56px"
+                  className="rounded-lg"
                 />
               </div>
               <p className="text-xs font-semibold">{service.name}</p>
