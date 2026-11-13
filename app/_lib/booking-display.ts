@@ -6,11 +6,11 @@ import { getBookingEnd } from "./schedule"
  *
  * `BookingService` não guarda a ordem em que o cliente marcou (a lista é um
  * conjunto), então a tela ordena pelo catálogo da barbearia: os serviços saem
- * na mesma sequência em que foram cadastrados, e o mesmo agendamento sempre
- * aparece igual em todas as telas.
+ * na ordem definida pelo barbeiro em /admin/servicos, e o mesmo agendamento
+ * sempre aparece igual em todas as telas.
  */
 export const serviceDisplayOrder = {
-  orderBy: { service: { createdAt: "asc" } },
+  orderBy: { service: { position: "asc" } },
 } as const
 
 /**

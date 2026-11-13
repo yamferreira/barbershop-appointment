@@ -31,8 +31,9 @@ const BarbershopPage = async ({ params }: BarbershopPageProps) => {
       id,
     },
 
+    // Mesmo filtro e ordem da home: só ativos, na ordem do barbeiro.
     include: {
-      services: true,
+      services: { where: { active: true }, orderBy: { position: "asc" } },
     },
   })
 

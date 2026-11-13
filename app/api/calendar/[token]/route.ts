@@ -78,7 +78,7 @@ export const GET = async (
       user: { select: { name: true } },
       services: {
         select: { service: { select: { name: true } } },
-        orderBy: { service: { createdAt: "asc" } },
+        orderBy: { service: { position: "asc" } },
       },
     },
     orderBy: { date: "asc" },
