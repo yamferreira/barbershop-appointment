@@ -9,6 +9,7 @@ import {
   CalendarOffIcon,
   CalendarRangeIcon,
   LayoutDashboardIcon,
+  ScissorsIcon,
 } from "lucide-react"
 import { cn } from "@/app/_lib/utils"
 
@@ -21,6 +22,7 @@ const items = [
   },
   { href: "/admin/bloqueios", label: "Bloqueios", icon: CalendarOffIcon },
   { href: "/admin/calendario", label: "Calendário", icon: CalendarRangeIcon },
+  { href: "/admin/servicos", label: "Serviços", icon: ScissorsIcon },
 ]
 
 /**
@@ -35,7 +37,7 @@ const isActive = (pathname: string, href: string) =>
 /**
  * Cabeçalho e navegação de /admin, no verde da marca como o header do site.
  *
- * No celular as quatro seções ficam numa linha de abas de largura igual, com o
+ * No celular as cinco seções ficam numa linha de abas de largura igual, com o
  * ícone em cima do texto; a partir de `sm` o ícone vai para o lado. "Voltar ao
  * site" fica na linha do logo, separado das seções.
  */
@@ -83,7 +85,7 @@ const AdminNav = () => {
       </div>
 
       <nav aria-label="Seções do painel">
-        <ul className="grid grid-cols-4 px-2 sm:flex sm:gap-1 sm:px-4">
+        <ul className="grid grid-cols-5 px-2 sm:flex sm:gap-1 sm:px-4">
           {items.map(({ href, label, icon: Icon }) => {
             const active = isActive(pathname, href)
             return (

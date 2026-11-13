@@ -33,6 +33,8 @@ const ServiceImage = ({ src, alt, sizes, className }: ServiceImageProps) => {
         fill
         sizes={sizes}
         loader={isCloudinaryUrl(src) ? cloudinaryLoader : undefined}
+        // Pré-visualização local do formulário do admin: não há o que otimizar.
+        unoptimized={src.startsWith("blob:")}
         className={cn("object-cover", className)}
       />
     )
