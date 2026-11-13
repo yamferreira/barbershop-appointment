@@ -1,7 +1,6 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { endOfDay, format, set, startOfDay } from "date-fns"
 import { Prisma } from "@/app/generated/prisma"
 import { requireBarbeiro } from "@/app/_lib/auth"
 import { findBlockForBarber } from "@/app/_lib/blocked-dates"
@@ -12,6 +11,13 @@ import {
   intervalsOverlap,
 } from "@/app/_lib/schedule"
 import { db } from "@/app/_lib/prisma"
+import {
+  barbershopDateTime,
+  getBarbershopDayKey,
+  getBarbershopDayRange,
+  getBarbershopWeekday,
+  isDayKey,
+} from "@/app/_lib/timezone"
 
 /**
  * Conta agendamentos por dia (yyyy-MM-dd) num intervalo, para os badges do
@@ -21,23 +27,28 @@ import { db } from "@/app/_lib/prisma"
  * mostrando todos os status, com a marcação visual que já os diferencia.
  *
  * `barberId` restringe a contagem a um barbeiro; sem ele, soma todos.
+ *
+ * `from` e `to` são dias "yyyy-MM-dd" (inclusive), e a chave de cada contagem
+ * é o dia do agendamento em São Paulo, não no fuso do servidor.
  */
 export const getMonthBookingCounts = async ({
   from,
   to,
   barberId,
 }: {
-  from: Date
-  to: Date
+  from: string
+  to: string
   barberId?: string
 }) => {
   await requireBarbeiro()
 
+  if (!isDayKey(from) || !isDayKey(to)) return {}
+
   const bookings = await db.booking.findMany({
     where: {
       date: {
-        gte: startOfDay(from),
-        lte: endOfDay(to),
+        gte: getBarbershopDayRange(from).start,
+        lt: getBarbershopDayRange(to).end,
       },
       status: "CONFIRMADO",
       ...(barberId && { barberId }),
@@ -47,7 +58,7 @@ export const getMonthBookingCounts = async ({
 
   const counts: Record<string, number> = {}
   for (const booking of bookings) {
-    const key = format(booking.date, "yyyy-MM-dd")
+    const key = getBarbershopDayKey(booking.date)
     counts[key] = (counts[key] ?? 0) + 1
   }
   return counts
@@ -81,9 +92,14 @@ export const updateBookingStatus = async (
   return { success: true as const }
 }
 
+/**
+ * `novoDia` é "yyyy-MM-dd" e `novoHorario` "HH:mm", ambos de parede em São
+ * Paulo: o instante é montado aqui, no fuso da barbearia, e não no do
+ * servidor (em UTC, 16:00 virava 13:00 de São Paulo).
+ */
 export const rescheduleBooking = async (
   bookingId: string,
-  novaData: Date,
+  novoDia: string,
   novoHorario: string,
 ) => {
   await requireBarbeiro()
@@ -99,22 +115,26 @@ export const rescheduleBooking = async (
     }
   }
 
-  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(novoHorario)) {
+  if (!isDayKey(novoDia)) {
+    return {
+      success: false as const,
+      message: "Data inválida.",
+    }
+  }
+
+  if (
+    typeof novoHorario !== "string" ||
+    !/^([01]\d|2[0-3]):([0-5]\d)$/.test(novoHorario)
+  ) {
     return {
       success: false as const,
       message: "Horário inválido. Use o formato HH:mm.",
     }
   }
 
-  const [hours, minutes] = novoHorario.split(":").map(Number)
-  const newDate = set(novaData, {
-    hours,
-    minutes,
-    seconds: 0,
-    milliseconds: 0,
-  })
+  const newDate = barbershopDateTime(novoDia, novoHorario)
 
-  if (newDate.getDay() === 0) {
+  if (getBarbershopWeekday(newDate) === 0) {
     return {
       success: false as const,
       message: "Barbearia fechada aos domingos.",
@@ -153,13 +173,11 @@ export const rescheduleBooking = async (
   // Sem filtro por serviço: para o mesmo barbeiro, qualquer agendamento ativo
   // naquele intervalo conflita, independente do serviço. Os agendamentos dos
   // outros barbeiros não entram: a agenda de cada um é independente.
+  const day = getBarbershopDayRange(novoDia)
   const dayBookings = await db.booking.findMany({
     where: {
       barberId: booking.barberId,
-      date: {
-        gte: startOfDay(newDate),
-        lte: endOfDay(newDate),
-      },
+      date: { gte: day.start, lt: day.end },
       id: { not: bookingId },
       status: { not: "CANCELADO" },
     },

@@ -1,5 +1,5 @@
-import { format } from "date-fns"
 import { getBookingEnd } from "./schedule"
+import { formatInBarbershopTz } from "./timezone"
 
 /**
  * Ordem de exibição dos serviços de um agendamento.
@@ -23,10 +23,10 @@ export const formatServiceNames = (services: { service: { name: string } }[]) =>
   services.map(({ service }) => service.name).join(" + ")
 
 /**
- * Fim do agendamento em "HH:mm", para exibir junto do início.
+ * Fim do agendamento em "HH:mm" de São Paulo, para exibir junto do início.
  *
  * Com vários serviços o horário de início sozinho engana: 09:00 pode terminar
  * 09:30 ou 11:00 dependendo do que foi marcado.
  */
 export const formatBookingEnd = (date: Date, durationMinutes: number) =>
-  format(getBookingEnd(date, durationMinutes), "HH:mm")
+  formatInBarbershopTz(getBookingEnd(date, durationMinutes), "HH:mm")

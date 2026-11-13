@@ -1,5 +1,5 @@
-import { format, isFuture } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import { isFuture } from "date-fns"
+import { formatInBarbershopTz } from "../../_lib/timezone"
 import { Avatar, AvatarImage } from "./avatar"
 import { Badge } from "./badge"
 import CancelBookingDialog from "./cancel-booking-dialog"
@@ -69,12 +69,14 @@ const BookingItem = ({ booking, showBarber = true }: BookingItemProps) => {
         {/* div right */}
         <div className="flex shrink-0 flex-col items-center justify-center border-l px-5 py-5">
           <p className="text-sm capitalize">
-            {format(booking.date, "MMMM", { locale: ptBR })}
+            {formatInBarbershopTz(booking.date, "MMMM")}
           </p>
-          <p className="text-2xl">{format(booking.date, "dd")}</p>
+          <p className="text-2xl">{formatInBarbershopTz(booking.date, "dd")}</p>
           {/* Com vários serviços o início sozinho não diz quanto tempo o
               cliente vai ficar; a faixa diz. */}
-          <p className="text-sm">{format(booking.date, "HH:mm")}</p>
+          <p className="text-sm">
+            {formatInBarbershopTz(booking.date, "HH:mm")}
+          </p>
           <p className="text-muted-foreground text-xs">
             até {formatBookingEnd(booking.date, booking.durationMinutes)}
           </p>

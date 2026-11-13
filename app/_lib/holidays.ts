@@ -11,12 +11,14 @@
  * `requireBarbeiro()` e a rota de cron confere o `CRON_SECRET`. Exportar isto
  * de um arquivo `"use server"` publicaria uma action sem autenticação.
  */
-import { toDateOnly } from "@/app/_lib/date-only"
+import { dayKeyToDateOnly } from "@/app/_lib/date-only"
 import { db } from "@/app/_lib/prisma"
+import { getBarbershopTodayKey, isDayKey } from "@/app/_lib/timezone"
 
 const BRASIL_API_URL = "https://brasilapi.com.br/api/feriados/v1"
 
-const DECEMBER = 11
+/** Mês no formato da BrasilAPI ("2026-12-25"). */
+const DECEMBER = "12"
 
 interface BrasilApiHoliday {
   date: string
@@ -38,18 +40,6 @@ const isHoliday = (value: unknown): value is BrasilApiHoliday => {
   )
 }
 
-/**
- * `"2026-09-07"` -> dia do calendário local.
- *
- * `new Date("2026-09-07")` seria interpretado como meia-noite **UTC**, o que em
- * UTC-3 recuaria o dia. Por isso a string é quebrada e remontada à mão, e só
- * depois passa por `toDateOnly()`, o mesmo caminho usado no resto do projeto.
- */
-const parseHolidayDate = (isoDay: string) => {
-  const [year, month, day] = isoDay.split("-").map(Number)
-  return new Date(year, month - 1, day)
-}
-
 const fetchHolidays = async (year: number): Promise<BrasilApiHoliday[]> => {
   const response = await fetch(`${BRASIL_API_URL}/${year}`, {
     cache: "no-store",
@@ -69,7 +59,10 @@ const fetchHolidays = async (year: number): Promise<BrasilApiHoliday[]> => {
 }
 
 export const syncNationalHolidays = async (): Promise<SyncHolidaysResult> => {
-  const currentYear = new Date().getFullYear()
+  // Hoje e o ano corrente em São Paulo: no servidor em UTC, a noite de 31/12
+  // já seria o ano seguinte.
+  const todayKey = getBarbershopTodayKey()
+  const currentYear = Number(todayKey.slice(0, 4))
 
   let holidays: BrasilApiHoliday[]
   try {
@@ -88,18 +81,19 @@ export const syncNationalHolidays = async (): Promise<SyncHolidaysResult> => {
     }
   }
 
-  const today = toDateOnly(new Date())
+  const today = dayKeyToDateOnly(todayKey)
 
   const candidates = new Map<number, { date: Date; reason: string }>()
 
   for (const holiday of holidays) {
     if (holiday.type !== "national") continue
 
-    const localDay = parseHolidayDate(holiday.date)
-    if (Number.isNaN(localDay.getTime())) continue
-    if (localDay.getMonth() === DECEMBER) continue
+    // A BrasilAPI já entrega o dia do calendário ("2026-09-07"): ele vai
+    // direto para a coluna `@db.Date`, sem passar por fuso nenhum.
+    if (!isDayKey(holiday.date)) continue
+    if (holiday.date.slice(5, 7) === DECEMBER) continue
 
-    const date = toDateOnly(localDay)
+    const date = dayKeyToDateOnly(holiday.date)
     // Feriados que já passaram não mudam nada na agenda e só poluiriam a lista.
     if (date < today) continue
 

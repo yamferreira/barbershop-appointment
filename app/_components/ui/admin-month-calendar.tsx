@@ -7,12 +7,8 @@ import {
   eachDayOfInterval,
   endOfWeek,
   format,
-  isBefore,
-  isSameDay,
   isSameMonth,
-  isToday,
   startOfMonth,
-  startOfToday,
   startOfWeek,
   subMonths,
 } from "date-fns"
@@ -20,10 +16,20 @@ import { useEffect, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { getMonthBookingCounts } from "@/app/admin/agendamentos/actions"
 import { getMonthGridRange } from "@/app/_lib/calendar-grid"
+import {
+  calendarDayFromKey,
+  calendarDayKey,
+  getBarbershopTodayKey,
+} from "@/app/_lib/timezone"
 import { cn } from "@/app/_lib/utils"
 
 interface AdminMonthCalendarProps {
-  selectedDate: Date
+  /**
+   * Dia selecionado, "yyyy-MM-dd". Texto e não `Date`: um `Date` criado no
+   * servidor (UTC) chega ao navegador como instante, e a meia-noite UTC é o
+   * dia anterior em São Paulo.
+   */
+  selectedDay: string
   initialMonthCounts: Record<string, number>
   /** Barbeiro filtrado; `undefined` conta todos. */
   barberId?: string
@@ -33,15 +39,17 @@ const capitalize = (text: string) =>
   text.charAt(0).toUpperCase() + text.slice(1)
 
 const AdminMonthCalendar = ({
-  selectedDate,
+  selectedDay,
   initialMonthCounts,
   barberId,
 }: AdminMonthCalendarProps) => {
   const router = useRouter()
   const pathname = usePathname()
   const [visibleMonth, setVisibleMonth] = useState(() =>
-    startOfMonth(selectedDate),
+    startOfMonth(calendarDayFromKey(selectedDay)),
   )
+  // "Hoje" de São Paulo: igual no HTML do servidor e no navegador.
+  const todayKey = getBarbershopTodayKey()
   const [monthCounts, setMonthCounts] =
     useState<Record<string, number>>(initialMonthCounts)
   const isFirstRender = useRef(true)
@@ -52,9 +60,11 @@ const AdminMonthCalendar = ({
       return
     }
     const { start, end } = getMonthGridRange(visibleMonth)
-    getMonthBookingCounts({ from: start, to: end, barberId }).then(
-      setMonthCounts,
-    )
+    getMonthBookingCounts({
+      from: calendarDayKey(start),
+      to: calendarDayKey(end),
+      barberId,
+    }).then(setMonthCounts)
   }, [visibleMonth, barberId])
 
   const weekdayLabels = eachDayOfInterval({
@@ -67,7 +77,7 @@ const AdminMonthCalendar = ({
 
   const handleDayClick = (day: Date) => {
     if (!isSameMonth(day, visibleMonth)) setVisibleMonth(startOfMonth(day))
-    const search = new URLSearchParams({ data: format(day, "yyyy-MM-dd") })
+    const search = new URLSearchParams({ data: calendarDayKey(day) })
     if (barberId) search.set("barbeiro", barberId)
     router.push(`${pathname}?${search.toString()}`)
     requestAnimationFrame(() => {
@@ -117,14 +127,14 @@ const AdminMonthCalendar = ({
       <div className="grid grid-cols-7 gap-y-1">
         {days.map((day) => {
           const isOutside = !isSameMonth(day, visibleMonth)
-          const isSelected = isSameDay(day, selectedDate)
-          const isCurrentDay = isToday(day)
+          const dayKey = calendarDayKey(day)
+          const isSelected = dayKey === selectedDay
+          const isCurrentDay = dayKey === todayKey
           // Só marca como "passado" dias dentro do mês visível e que não
           // estejam selecionados — selecionar um dia antigo pra ver o
           // histórico continua mostrando ele em destaque normal.
-          const isPastDay =
-            !isOutside && !isSelected && isBefore(day, startOfToday())
-          const count = monthCounts[format(day, "yyyy-MM-dd")] ?? 0
+          const isPastDay = !isOutside && !isSelected && dayKey < todayKey
+          const count = monthCounts[dayKey] ?? 0
 
           return (
             <div

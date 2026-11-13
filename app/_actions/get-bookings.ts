@@ -1,14 +1,18 @@
 "use server"
 
-import { endOfDay, startOfDay } from "date-fns"
 import { db } from "../_lib/prisma"
+import { getBarbershopDayRange, isDayKey } from "../_lib/timezone"
 
 // Os agendamentos do próprio usuário (home e /bookings) NÃO moram aqui: este
 // arquivo é "use server" e todo export dele é endpoint público. Eles estão em
 // `app/_lib/user-bookings.ts`, que é server-only e lê o usuário da sessão.
 
 interface GetBookingsParams {
-  date: Date
+  /**
+   * Dia do calendário, "yyyy-MM-dd". Não um `Date`: a meia-noite do navegador
+   * é um instante, e fora do fuso da barbearia ela cai no dia errado.
+   */
+  day: string
 }
 
 /**
@@ -31,13 +35,12 @@ interface GetBookingsParams {
  * O retorno é enxuto de propósito: isso atravessa para o client, e a lista de
  * horários não precisa saber quem reservou o quê.
  */
-export const getBookings = async ({ date }: GetBookingsParams) => {
+export const getBookings = async ({ day }: GetBookingsParams) => {
+  if (!isDayKey(day)) return []
+  const { start, end } = getBarbershopDayRange(day)
   return db.booking.findMany({
     where: {
-      date: {
-        gte: startOfDay(date),
-        lte: endOfDay(date),
-      },
+      date: { gte: start, lt: end },
       status: { not: "CANCELADO" },
     },
     select: { barberId: true, date: true, durationMinutes: true },

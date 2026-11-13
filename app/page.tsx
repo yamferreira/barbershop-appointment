@@ -6,8 +6,7 @@ import { auth } from "./_lib/auth-config"
 import { getConfirmedBookings } from "./_lib/user-bookings"
 import { getActiveBarbers } from "./_actions/get-barbers"
 import { getLastBookingPhone } from "./_lib/last-booking-phone"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import { formatInBarbershopTz } from "./_lib/timezone"
 
 const Home = async () => {
   const session = await auth()
@@ -22,7 +21,9 @@ const Home = async () => {
   const confirmedBookings = await getConfirmedBookings()
   const lastPhone = await getLastBookingPhone()
   const firstName = session?.user?.name?.split(" ")[0]
-  const today = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })
+  // Data de hoje em São Paulo: no servidor em UTC, depois das 21h já seria
+  // amanhã.
+  const today = formatInBarbershopTz(new Date(), "EEEE, dd 'de' MMMM")
   const capitalizedToday = today.charAt(0).toUpperCase() + today.slice(1)
 
   const services = barbershop

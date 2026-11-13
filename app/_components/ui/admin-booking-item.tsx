@@ -1,5 +1,4 @@
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import { formatInBarbershopTz } from "@/app/_lib/timezone"
 import type {
   Barber,
   Booking,
@@ -87,7 +86,7 @@ const AdminBookingItem = ({
             cadeira volta a ficar livre. */}
         <div className="shrink-0 text-right">
           <p className="text-lg font-bold">
-            {format(booking.date, "HH:mm", { locale: ptBR })}
+            {formatInBarbershopTz(booking.date, "HH:mm")}
           </p>
           <p className="text-muted-foreground text-xs">
             até {formatBookingEnd(booking.date, booking.durationMinutes)}

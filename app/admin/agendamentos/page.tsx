@@ -1,4 +1,4 @@
-import { endOfDay, format, isValid, parse, startOfDay } from "date-fns"
+import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { db } from "@/app/_lib/prisma"
 import AdminMonthCalendar from "@/app/_components/ui/admin-month-calendar"
@@ -6,6 +6,13 @@ import AdminBookingItem from "@/app/_components/ui/admin-booking-item"
 import AdminBarberFilter from "@/app/_components/ui/admin-barber-filter"
 import { getMonthGridRange } from "@/app/_lib/calendar-grid"
 import { serviceDisplayOrder } from "@/app/_lib/booking-display"
+import {
+  calendarDayFromKey,
+  calendarDayKey,
+  getBarbershopDayRange,
+  getBarbershopTodayKey,
+  isDayKey,
+} from "@/app/_lib/timezone"
 import { getMonthBookingCounts } from "./actions"
 
 interface AdminAgendamentosPageProps {
@@ -16,8 +23,11 @@ const AdminAgendamentosPage = async ({
   searchParams,
 }: AdminAgendamentosPageProps) => {
   const { data, barbeiro } = await searchParams
-  const parsedDate = data ? parse(data, "yyyy-MM-dd", new Date()) : new Date()
-  const selectedDate = isValid(parsedDate) ? parsedDate : new Date()
+  // Sem `?data=` (ou com uma inválida), hoje em São Paulo, não no servidor.
+  const selectedDay = isDayKey(data) ? data : getBarbershopTodayKey()
+  // Data de parede, só para a grade do mês e o título.
+  const selectedDate = calendarDayFromKey(selectedDay)
+  const dayRange = getBarbershopDayRange(selectedDay)
 
   const { start: gridStart, end: gridEnd } = getMonthGridRange(selectedDate)
 
@@ -43,10 +53,7 @@ const AdminAgendamentosPage = async ({
     db.booking.findMany({
       where: {
         ...(selectedBarberId && { barberId: selectedBarberId }),
-        date: {
-          gte: startOfDay(selectedDate),
-          lte: endOfDay(selectedDate),
-        },
+        date: { gte: dayRange.start, lt: dayRange.end },
       },
       include: {
         services: { include: { service: true }, ...serviceDisplayOrder },
@@ -60,8 +67,8 @@ const AdminAgendamentosPage = async ({
       orderBy: [{ status: "asc" }, { date: "asc" }],
     }),
     getMonthBookingCounts({
-      from: gridStart,
-      to: gridEnd,
+      from: calendarDayKey(gridStart),
+      to: calendarDayKey(gridEnd),
       barberId: selectedBarberId,
     }),
   ])
@@ -80,7 +87,7 @@ const AdminAgendamentosPage = async ({
       )}
 
       <AdminMonthCalendar
-        selectedDate={selectedDate}
+        selectedDay={selectedDay}
         initialMonthCounts={monthCounts}
         barberId={selectedBarberId}
       />
