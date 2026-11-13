@@ -1,13 +1,18 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { format, startOfToday } from "date-fns"
+import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { toast } from "sonner"
 import {
   blockDate,
   type ConflictingBooking,
 } from "@/app/admin/bloqueios/actions"
+import {
+  calendarDayFromKey,
+  calendarDayKey,
+  getBarbershopTodayKey,
+} from "@/app/_lib/timezone"
 import BookingPhone from "./booking-phone"
 import { Button } from "./button"
 import { Calendar } from "./calendar"
@@ -53,7 +58,7 @@ const BlockDateForm = ({ barbers }: BlockDateFormProps) => {
 
     startTransition(async () => {
       const result = await blockDate(
-        selectedDay,
+        calendarDayKey(selectedDay),
         reason,
         confirmed,
         scopeBarberId,
@@ -82,7 +87,7 @@ const BlockDateForm = ({ barbers }: BlockDateFormProps) => {
           locale={ptBR}
           selected={selectedDay}
           onSelect={setSelectedDay}
-          disabled={{ before: startOfToday() }}
+          disabled={{ before: calendarDayFromKey(getBarbershopTodayKey()) }}
           styles={{
             head_cell: {
               width: "100%",

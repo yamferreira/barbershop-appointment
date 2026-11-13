@@ -1,4 +1,5 @@
-import { addMinutes, set } from "date-fns"
+import { addMinutes } from "date-fns"
+import { setBarbershopTime } from "./timezone"
 
 /** Último horário em que o expediente pode terminar. */
 export const CLOSING_HOUR = 20
@@ -22,15 +23,11 @@ export const getBookingEnd = (date: Date, durationMinutes: number): Date =>
   addMinutes(date, durationMinutes)
 
 /**
- * Horário de fechamento do dia em que `date` cai.
+ * Horário de fechamento do dia em que `date` cai, no fuso da barbearia (não no
+ * de quem executa: na Vercel, em UTC, 20h seriam 17h de São Paulo).
  */
 export const getClosingTime = (date: Date) =>
-  set(date, {
-    hours: CLOSING_HOUR,
-    minutes: 0,
-    seconds: 0,
-    milliseconds: 0,
-  })
+  setBarbershopTime(date, CLOSING_HOUR)
 
 /** Duração em texto curto: 20min, 1h, 1h10min. */
 export const formatDuration = (minutes: number) => {

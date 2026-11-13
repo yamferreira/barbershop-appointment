@@ -1,8 +1,11 @@
-import { endOfDay, startOfDay } from "date-fns"
 import { db } from "@/app/_lib/prisma"
 import { serviceDisplayOrder } from "@/app/_lib/booking-display"
 import AdminBookingItem from "@/app/_components/ui/admin-booking-item"
 import AdminBarberFilter from "@/app/_components/ui/admin-barber-filter"
+import {
+  getBarbershopDayRange,
+  getBarbershopTodayKey,
+} from "@/app/_lib/timezone"
 
 interface AdminPageProps {
   searchParams: Promise<{ barbeiro?: string }>
@@ -10,7 +13,9 @@ interface AdminPageProps {
 
 const AdminPage = async ({ searchParams }: AdminPageProps) => {
   const { barbeiro } = await searchParams
-  const today = new Date()
+  // Hoje em São Paulo. Com `startOfDay(new Date())` no servidor (UTC), das
+  // 21h à meia-noite o painel já mostraria o dia seguinte.
+  const today = getBarbershopDayRange(getBarbershopTodayKey())
 
   // Admin enxerga todos os barbeiros (inclusive inativos, que ainda podem ter
   // agendamentos). Um id desconhecido na URL vira "Todos".
@@ -33,10 +38,7 @@ const AdminPage = async ({ searchParams }: AdminPageProps) => {
   const bookings = await db.booking.findMany({
     where: {
       ...(selectedBarberId && { barberId: selectedBarberId }),
-      date: {
-        gte: startOfDay(today),
-        lte: endOfDay(today),
-      },
+      date: { gte: today.start, lt: today.end },
     },
     include: {
       services: { include: { service: true }, ...serviceDisplayOrder },

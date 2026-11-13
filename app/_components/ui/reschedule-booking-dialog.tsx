@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { format, parse } from "date-fns"
 import { toast } from "sonner"
 import { rescheduleBooking } from "@/app/admin/agendamentos/actions"
+import { formatInBarbershopTz } from "@/app/_lib/timezone"
 import { Button } from "./button"
 import { Input } from "./input"
 import { Label } from "./label"
@@ -29,15 +29,19 @@ const RescheduleBookingDialog = ({
 }: RescheduleBookingDialogProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [date, setDate] = useState(format(currentDate, "yyyy-MM-dd"))
-  const [time, setTime] = useState(format(currentDate, "HH:mm"))
+  // Data e hora de parede em São Paulo, iguais no servidor (que renderiza o
+  // HTML inicial) e no navegador, seja qual for o fuso de cada um.
+  const [date, setDate] = useState(
+    formatInBarbershopTz(currentDate, "yyyy-MM-dd"),
+  )
+  const [time, setTime] = useState(formatInBarbershopTz(currentDate, "HH:mm"))
   const [error, setError] = useState<string | null>(null)
 
   const handleReschedule = () => {
     setError(null)
     startTransition(async () => {
-      const novaData = parse(date, "yyyy-MM-dd", new Date())
-      const result = await rescheduleBooking(bookingId, novaData, time)
+      // O dia vai como texto: o servidor monta o instante em São Paulo.
+      const result = await rescheduleBooking(bookingId, date, time)
 
       if (!result.success) {
         setError(result.message)
@@ -56,8 +60,8 @@ const RescheduleBookingDialog = ({
       onOpenChange={(open) => {
         setIsDialogOpen(open)
         if (open) {
-          setDate(format(currentDate, "yyyy-MM-dd"))
-          setTime(format(currentDate, "HH:mm"))
+          setDate(formatInBarbershopTz(currentDate, "yyyy-MM-dd"))
+          setTime(formatInBarbershopTz(currentDate, "HH:mm"))
           setError(null)
         }
       }}

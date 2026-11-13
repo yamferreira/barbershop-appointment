@@ -1,15 +1,19 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { endOfDay, format, startOfDay } from "date-fns"
 import { Prisma } from "@/app/generated/prisma"
 import { requireBarbeiro } from "@/app/_lib/auth"
-import { toDateOnly } from "@/app/_lib/date-only"
+import { dayKeyToDateOnly } from "@/app/_lib/date-only"
 import {
   formatServiceNames,
   serviceDisplayOrder,
 } from "@/app/_lib/booking-display"
 import { db } from "@/app/_lib/prisma"
+import {
+  formatInBarbershopTz,
+  getBarbershopDayRange,
+  isDayKey,
+} from "@/app/_lib/timezone"
 
 export interface ConflictingBooking {
   id: string
@@ -38,16 +42,14 @@ type BlockDateResult =
  * que já exige barbeiro, chama isto.
  */
 const getBookingsOnDate = async (
-  date: Date,
+  day: string,
   barberId?: string,
 ): Promise<ConflictingBooking[]> => {
+  const { start, end } = getBarbershopDayRange(day)
   const bookings = await db.booking.findMany({
     where: {
       ...(barberId && { barberId }),
-      date: {
-        gte: startOfDay(date),
-        lte: endOfDay(date),
-      },
+      date: { gte: start, lt: end },
       status: { not: "CANCELADO" },
     },
     include: {
@@ -68,23 +70,31 @@ const getBookingsOnDate = async (
     barberName: booking.barber.name,
     serviceNames: formatServiceNames(booking.services),
     phone: booking.guestPhone,
-    time: format(booking.date, "HH:mm"),
+    time: formatInBarbershopTz(booking.date, "HH:mm"),
   }))
 }
 
 /**
  * `barberId` nulo bloqueia a barbearia inteira; preenchido, só aquele
- * barbeiro.
+ * barbeiro. `day` é o dia do calendário, "yyyy-MM-dd".
  */
 export const blockDate = async (
-  date: Date,
+  day: string,
   reason?: string,
   confirmed?: boolean,
   barberId?: string | null,
 ): Promise<BlockDateResult> => {
   await requireBarbeiro()
 
-  const blockedDay = toDateOnly(date)
+  if (!isDayKey(day)) {
+    return {
+      success: false,
+      needsConfirmation: false,
+      message: "Data inválida.",
+    }
+  }
+
+  const blockedDay = dayKeyToDateOnly(day)
   const scopeBarberId = barberId || null
 
   if (scopeBarberId) {
@@ -129,9 +139,9 @@ export const blockDate = async (
   // agendamento é cancelado ou alterado automaticamente. Avisar o cliente é
   // responsabilidade manual, fora do sistema.
   if (!confirmed) {
-    // `Booking.date` é um DateTime comum, então a busca por conflito usa o dia
-    // do calendário local escolhido pelo barbeiro, não o Date normalizado em UTC.
-    const bookings = await getBookingsOnDate(date, scopeBarberId ?? undefined)
+    // `Booking.date` é um instante, então a busca por conflito usa o
+    // intervalo desse dia em São Paulo.
+    const bookings = await getBookingsOnDate(day, scopeBarberId ?? undefined)
     if (bookings.length > 0) {
       return { success: false, needsConfirmation: true, bookings }
     }

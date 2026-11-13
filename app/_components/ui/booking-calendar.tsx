@@ -11,13 +11,16 @@ import {
   isBefore,
   isSameDay,
   isSameMonth,
-  isToday,
   startOfMonth,
-  startOfToday,
   startOfWeek,
   subMonths,
 } from "date-fns"
 import { useState } from "react"
+import {
+  calendarDayFromKey,
+  calendarDayKey,
+  getBarbershopTodayKey,
+} from "@/app/_lib/timezone"
 import { cn } from "@/app/_lib/utils"
 
 interface BookingCalendarProps {
@@ -34,8 +37,11 @@ const BookingCalendar = ({
   onSelect,
   disabled,
 }: BookingCalendarProps) => {
+  // "Hoje" é o de São Paulo, igual no HTML do servidor e no navegador.
+  const todayKey = getBarbershopTodayKey()
+  const today = calendarDayFromKey(todayKey)
   const [visibleMonth, setVisibleMonth] = useState(() =>
-    startOfMonth(selected ?? startOfToday()),
+    startOfMonth(selected ?? today),
   )
 
   const weekdayLabels = eachDayOfInterval({
@@ -48,7 +54,7 @@ const BookingCalendar = ({
     end: endOfWeek(endOfMonth(visibleMonth), { locale: ptBR }),
   })
 
-  const isPastMonth = isBefore(visibleMonth, startOfMonth(startOfToday()))
+  const isPastMonth = isBefore(visibleMonth, startOfMonth(today))
   const canGoToPreviousMonth = !isPastMonth
 
   const handleDayClick = (day: Date) => {
@@ -100,7 +106,7 @@ const BookingCalendar = ({
           const isOutside = !isSameMonth(day, visibleMonth)
           const isSelected = selected && isSameDay(day, selected)
           const isDisabled = disabled?.(day) ?? false
-          const isCurrentDay = isToday(day)
+          const isCurrentDay = calendarDayKey(day) === todayKey
 
           return (
             <div

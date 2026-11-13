@@ -1,6 +1,5 @@
 "use server"
 
-import { endOfDay, startOfDay } from "date-fns"
 import { Prisma } from "../generated/prisma"
 import { findBlockForBarber } from "../_lib/blocked-dates"
 import { formatPhone, isValidPhone, normalizePhone } from "../_lib/phone"
@@ -14,6 +13,11 @@ import {
 } from "../_lib/schedule"
 import { auth } from "../_lib/auth-config"
 import { sanitizeGuestName } from "../_lib/guest-name"
+import {
+  getBarbershopDayKey,
+  getBarbershopDayRange,
+  getBarbershopWeekday,
+} from "../_lib/timezone"
 
 /**
  * Mensagem de limite conforme quem pede. Convidado não tem tela de
@@ -93,7 +97,9 @@ export const createBooking = async (params: CreateBookingParams) => {
     }
   }
 
-  if (params.date.getDay() === 0) {
+  // Domingo em São Paulo. `getDay()` puro usaria o fuso do servidor: em UTC,
+  // domingo 22h já é segunda e passava.
+  if (getBarbershopWeekday(params.date) === 0) {
     return {
       success: false as const,
       message: "Barbearia fechada aos domingos.",
@@ -173,13 +179,12 @@ export const createBooking = async (params: CreateBookingParams) => {
   }
 
   // Só as reservas deste barbeiro contam: a agenda de cada um é independente.
+  // O dia é o de São Paulo.
+  const day = getBarbershopDayRange(getBarbershopDayKey(params.date))
   const dayBookings = await db.booking.findMany({
     where: {
       barberId: barber.id,
-      date: {
-        gte: startOfDay(params.date),
-        lte: endOfDay(params.date),
-      },
+      date: { gte: day.start, lt: day.end },
       status: { not: "CANCELADO" },
     },
     // A duração vem da coluna do próprio Booking, não do serviço: um

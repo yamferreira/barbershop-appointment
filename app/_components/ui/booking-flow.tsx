@@ -16,10 +16,10 @@ import { Input } from "./input"
 import { Label } from "./label"
 import { ptBR } from "date-fns/locale"
 import { useEffect, useMemo, useState } from "react"
-import { format, isSameDay, set, startOfToday } from "date-fns"
+import { format } from "date-fns"
 import { useSession } from "next-auth/react"
 import { createBooking } from "@/app/_actions/create-booking"
-import { fromDateOnly } from "@/app/_lib/date-only"
+import { dateOnlyToDayKey } from "@/app/_lib/date-only"
 import { isValidPhone, maskPhone, normalizePhone } from "@/app/_lib/phone"
 import { getBlockedDates } from "@/app/_actions/get-blocked-dates"
 import { getBookings } from "@/app/_actions/get-bookings"
@@ -29,6 +29,11 @@ import {
   getClosingTime,
   intervalsOverlap,
 } from "@/app/_lib/schedule"
+import {
+  barbershopDateTime,
+  calendarDayKey,
+  getBarbershopTodayKey,
+} from "@/app/_lib/timezone"
 import { cn } from "@/app/_lib/utils"
 import { toast } from "sonner"
 
@@ -134,26 +139,34 @@ const BookingFlow = ({
     getBlockedDates().then(setBlockedDates)
   }, [])
 
+  // Os dias do calendário são datas de parede (ano/mês/dia). O que viaja para
+  // o servidor é a chave "yyyy-MM-dd", e os instantes saem de
+  // `barbershopDateTime`, no fuso da barbearia: um cliente com o celular em
+  // outro fuso vê e marca os horários de São Paulo.
+  const selectedDayKey = selectedDay ? calendarDayKey(selectedDay) : undefined
+
   useEffect(() => {
-    if (!selectedDay) return
-    getBookings({ date: selectedDay }).then(setDayBookings)
-  }, [selectedDay])
+    if (!selectedDayKey) return
+    getBookings({ day: selectedDayKey }).then(setDayBookings)
+  }, [selectedDayKey])
 
   // Bloqueio sem barbeiro vale para a barbearia inteira; com barbeiro, só para
   // ele. O mesmo critério do servidor (`findBlockForBarber`).
-  const isBlockedFor = (date: Date, barberId: string) =>
+  const isBlockedFor = (dayKey: string, barberId: string) =>
     blockedDates.some(
       (blocked) =>
-        isSameDay(fromDateOnly(blocked.date), date) &&
+        dateOnlyToDayKey(blocked.date) === dayKey &&
         (blocked.barberId === null || blocked.barberId === barberId),
     )
 
   // O dia só some do calendário quando nenhum barbeiro pode atender nele. Se
-  // só um estiver bloqueado, o dia continua e a seção dele avisa.
+  // só um estiver bloqueado, o dia continua e a seção dele avisa. "Hoje" é o
+  // de São Paulo; o dia da semana é o da própria data de parede.
   const isDateDisabled = (date: Date) => {
-    if (date < startOfToday()) return true
+    const dayKey = calendarDayKey(date)
+    if (dayKey < getBarbershopTodayKey()) return true
     if (date.getDay() === 0) return true
-    return barbers.every((barber) => isBlockedFor(date, barber.id))
+    return barbers.every((barber) => isBlockedFor(dayKey, barber.id))
   }
 
   // Um horário só entra na lista de um barbeiro se o intervalo inteiro do novo
@@ -166,8 +179,7 @@ const BookingFlow = ({
   // Isso é só conveniência de UX: a validação que vale é a do servidor, em
   // createBooking.
   const barberSlots = useMemo(() => {
-    if (!selectedDay || totalDurationMinutes === 0) return []
-    const closingTime = getClosingTime(selectedDay)
+    if (!selectedDayKey || totalDurationMinutes === 0) return []
 
     return barbers.map((barber) => {
       const barberBookings = dayBookings.filter(
@@ -175,24 +187,17 @@ const BookingFlow = ({
       )
       const isBlocked = blockedDates.some(
         (blocked) =>
-          isSameDay(fromDateOnly(blocked.date), selectedDay) &&
+          dateOnlyToDayKey(blocked.date) === selectedDayKey &&
           (blocked.barberId === null || blocked.barberId === barber.id),
       )
 
       const times = isBlocked
         ? []
         : TIME_LIST.filter((time) => {
-            const hour = Number(time.split(":")[0])
-            const minutes = Number(time.split(":")[1])
-            const start = set(selectedDay, {
-              hours: hour,
-              minutes,
-              seconds: 0,
-              milliseconds: 0,
-            })
+            const start = barbershopDateTime(selectedDayKey, time)
             const end = getBookingEnd(start, totalDurationMinutes)
 
-            if (end > closingTime) return false
+            if (end > getClosingTime(start)) return false
 
             return !barberBookings.some((booking) =>
               intervalsOverlap(
@@ -206,7 +211,7 @@ const BookingFlow = ({
 
       return { barber, isBlocked, times }
     })
-  }, [selectedDay, dayBookings, blockedDates, barbers, totalDurationMinutes])
+  }, [selectedDayKey, dayBookings, blockedDates, barbers, totalDurationMinutes])
 
   // Com um único barbeiro ativo não há escolha a fazer: os horários dele são os
   // horários da barbearia, sem título por barbeiro, e o barbeiro vai junto do
@@ -245,7 +250,8 @@ const BookingFlow = ({
   }
 
   const handleConfirmClick = async () => {
-    if (!selectedDay || !selectedSlot || selectedServices.length === 0) return
+    if (!selectedDayKey || !selectedSlot || selectedServices.length === 0)
+      return
     if (isGuest && !guestName.trim()) {
       toast.error("Informe seu nome para agendar.")
       return
@@ -257,12 +263,8 @@ const BookingFlow = ({
 
     setSubmitError(null)
     try {
-      const hour = Number(selectedSlot.time.split(":")[0])
-      const minutes = Number(selectedSlot.time.split(":")[1])
-      const newDate = set(selectedDay, {
-        minutes: minutes,
-        hours: hour,
-      })
+      // Instante do horário escolhido em São Paulo, não no fuso do aparelho.
+      const newDate = barbershopDateTime(selectedDayKey, selectedSlot.time)
       const result = await createBooking({
         serviceIds: selectedServices.map((service) => service.id),
         barberId: selectedSlot.barberId,
@@ -281,7 +283,7 @@ const BookingFlow = ({
           return
         }
         setSelectedSlot(undefined)
-        getBookings({ date: selectedDay }).then(setDayBookings)
+        getBookings({ day: selectedDayKey }).then(setDayBookings)
         return
       }
 
